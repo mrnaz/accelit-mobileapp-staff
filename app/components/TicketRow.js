@@ -4,18 +4,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import Theme from '../context/ThemeContext';
 import Avatar from './Avatar';
-import { priorityColor } from '../utils/tickets';
+import { priorityColor, priorityLabel } from '../utils/tickets';
 import { relativeTime, ageDays } from '../utils/datetime';
 
 // One ticket inside a card list, laid out like the Qobox student row: avatar,
 // copy, chevron, with a divider above every row but the first (the card's
 // header band closes the top). The priority dot sits inline just before the
-// ticket reference and is the only priority signal; the meta line does not
-// repeat it as a word.
+// ticket reference; the priority word only follows it for Critical and High,
+// in the priority colour, since those are the ones worth calling out by name.
 //
 // `showClient` adds the client's logo and name. The client Tickets tab leaves
 // it off, since every row there belongs to the one client already on screen.
-export default function TicketRow({ ticket, index, mine = false, showClient = true }) {
+export default function TicketRow({ ticket, index, showClient = true }) {
     const { useTheme } = Theme;
     const { theme } = useTheme();
     const { colors } = theme;
@@ -44,14 +44,14 @@ export default function TicketRow({ ticket, index, mine = false, showClient = tr
                 <View style={styles.refRow}>
                     <View style={[styles.dot, { backgroundColor: priorityColor(ticket.priority, colors) }]} />
                     <Text style={[styles.ref, { color: colors.textSecondary }]}>{ref}</Text>
-                    {mine ? (
-                        <View style={[styles.chip, { backgroundColor: colors.primary + '1A' }]}>
-                            <Text style={[styles.chipText, { color: colors.primary }]}>You</Text>
-                        </View>
+                    {ticket.priority === 'C' || ticket.priority === 'H' ? (
+                        <Text style={{ fontSize: 11, fontWeight: '700', color: priorityColor(ticket.priority, colors) }}>
+                            {priorityLabel(ticket.priority)}
+                        </Text>
                     ) : null}
                 </View>
 
-                <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={2}>
+                <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={1}>
                     {ticket.title}
                 </Text>
 
@@ -77,8 +77,6 @@ const styles = StyleSheet.create({
     refRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     dot: { width: 8, height: 8, borderRadius: 4 },
     ref: { fontSize: 11, fontWeight: '700' },
-    chip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, marginLeft: 2 },
-    chipText: { fontSize: 10, fontWeight: '700' },
     title: { fontSize: 14, fontWeight: '600', lineHeight: 19 },
     meta: { fontSize: 12 },
 });

@@ -9,7 +9,7 @@ import ScreenState from '../components/ScreenState';
 import SearchField from '../components/SearchField';
 import Pills from '../components/Pills';
 import useDebounced from '../utils/useDebounced';
-import { isMine } from '../utils/tickets';
+import { partitionTickets } from '../utils/tickets';
 
 const PAGE_SIZE = 30;
 
@@ -18,10 +18,11 @@ const FILTERS = [
     { value: 'done', label: 'Completed' },
 ];
 
-// The list is one card, like the Qobox student list: a header band with the
-// filter and the total, then every loaded row separated by dividers. The
-// FlatList carries that single card so pull-to-refresh and end-reached paging
-// keep working.
+// The list is two cards, "Yours" and "Everyone else", each laid out like the
+// Qobox student list: a header band with the title and a count, then every
+// loaded row separated by dividers. The FlatList carries one synthetic item
+// that renders both cards so pull-to-refresh and end-reached paging keep
+// working against a single list.
 const CARD = [{ key: 'tickets-card' }];
 
 // GET /api/tickets is one of the few endpoints that paginates and searches
@@ -30,8 +31,9 @@ const CARD = [{ key: 'tickets-card' }];
 //
 // There is no "assigned to me" parameter. The backend does sort the current
 // user's tickets first, then unassigned, then everyone else's — so yours lead
-// the list, and rows assigned to you carry a chip rather than the app shipping
-// a filter that would only ever see the page it had already loaded.
+// the list, and `partitionTickets` splits the page already loaded into the
+// two cards rather than the app shipping a filter that would only ever see
+// the page it had already loaded.
 export default function Tickets() {
     const { useTheme } = Theme;
     const { theme } = useTheme();
@@ -99,14 +101,29 @@ export default function Tickets() {
         fetchPage(page + 1, 'more');
     }, [loading, loadingMore, rows.length, total, page, fetchPage]);
 
-    const renderCard = useCallback(() => (
-        <Card>
-            <CardHeader title={filter === 'done' ? 'Completed' : 'Open'} meta={total} />
-            {rows.map((item, index) => (
-                <TicketRow key={String(item.id)} ticket={item} index={index} mine={isMine(item, staff)} />
-            ))}
-        </Card>
-    ), [rows, total, filter, staff]);
+    const renderCard = useCallback(() => {
+        const { yours, others, othersTotal } = partitionTickets(rows, staff, total);
+
+        return (
+            <View style={{ gap: cardGap }}>
+                {yours.length > 0 ? (
+                    <Card>
+                        <CardHeader title="Yours" meta={yours.length} />
+                        {yours.map((item, index) => (
+                            <TicketRow key={String(item.id)} ticket={item} index={index} />
+                        ))}
+                    </Card>
+                ) : null}
+
+                <Card>
+                    <CardHeader title="Everyone else" meta={othersTotal} />
+                    {others.map((item, index) => (
+                        <TicketRow key={String(item.id)} ticket={item} index={index} />
+                    ))}
+                </Card>
+            </View>
+        );
+    }, [rows, total, staff]);
 
     return (
         <View style={styles.screen}>
