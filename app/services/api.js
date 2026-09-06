@@ -24,14 +24,20 @@ class ApiService {
         this.deviceToken = deviceToken || null;
     }
 
+    // Loads what the device has persisted. Only a stored value replaces what
+    // is in memory: mid-login the in-memory token is the OTP stub from
+    // POST /login, which is never persisted, and the root layout calls this
+    // on every navigation, including login -> otp. Clearing on an empty
+    // store here would strip that stub before the code is submitted. Logout
+    // and the 401 handler clear the token explicitly instead.
     async restore() {
         const [[, token], [, deviceToken]] = await AsyncStorage.multiGet([
             STORAGE_KEYS.token,
             STORAGE_KEYS.mfaDeviceToken,
         ]);
 
-        this.setToken(token);
-        this.setDeviceToken(deviceToken);
+        if (token) this.setToken(token);
+        if (deviceToken) this.setDeviceToken(deviceToken);
 
         return token;
     }

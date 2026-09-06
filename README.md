@@ -14,6 +14,13 @@ network. Start the VPN before opening the app. If it is off, the app says so on
 launch rather than showing a password box that cannot succeed, and a VPN drop
 mid-session routes back to that screen rather than to a misleading login error.
 
+Login is the web app's login. The app calls the same `/login-ip-check`,
+`/login` and `/check-otp` routes, which sit inside the same `ip.whitelist`
+group as every other admin route, and it goes through the same MFA: an OTP
+token that can only exchange a code, then a full token, with the same
+three-week remembered device sent as `X-MFA-Device-Token`. There is no
+app-specific route that skips either check.
+
 ## Passwords are displayed, never stored
 
 Client passwords and local-admin passwords are shown on request and discarded.
