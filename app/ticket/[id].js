@@ -1,18 +1,23 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, RefreshControl, useWindowDimensions, StyleSheet } from 'react-native';
+import {
+    View, Text, ScrollView, RefreshControl, TouchableOpacity, Linking, useWindowDimensions, StyleSheet,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import RenderHtml from 'react-native-render-html';
 import Theme from '../context/ThemeContext';
+import { useStaff } from '../context/StaffContext';
 import api from '../services/api';
 import DetailHeader from '../components/DetailHeader';
 import ScreenState from '../components/ScreenState';
 import Card, { cardGap, CardHeader, cardBodyPadding } from '../components/Card';
 import LabelValue from '../components/LabelValue';
-import ContactRow from '../components/ContactRow';
-import { priorityColor, priorityLabel } from '../utils/tickets';
+import Avatar from '../components/Avatar';
+import IconButton from '../components/IconButton';
+import { priorityColor, priorityLabel, isMine } from '../utils/tickets';
 import { dateTime, relativeTime } from '../utils/datetime';
+import { formatPhone, dialUri, mailUri } from '../utils/phone';
 
 export default function TicketPage() {
     const { id } = useLocalSearchParams();
@@ -20,6 +25,7 @@ export default function TicketPage() {
     const { theme, mode } = useTheme();
     const { colors } = theme;
     const { width } = useWindowDimensions();
+    const { staff } = useStaff();
 
     const [ticket, setTicket] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -45,12 +51,6 @@ export default function TicketPage() {
 
     useEffect(() => { load(); }, [load]);
 
-    const reporter = useMemo(() => {
-        const users = Array.isArray(ticket?.affected_users) ? ticket.affected_users : [];
-
-        return users.find((u) => u.reporter) || users[0] || null;
-    }, [ticket]);
-
     // Ticket bodies are Tiptap HTML stored without sanitisation and rendered
     // with v-html on the web. react-native-render-html does not execute script,
     // and media hrefs arrive already signed from the backend.
@@ -64,6 +64,12 @@ export default function TicketPage() {
     }), [colors]);
 
     const body = ticket?.body?.trim();
+
+    const contactName = ticket?.client_contact_full_name;
+    const contactMeta = [ticket?.client_contact_position, formatPhone(ticket?.client_contact_phone)]
+        .filter(Boolean).join(' · ');
+    const contactDial = dialUri(ticket?.client_contact_phone);
+    const contactMail = mailUri(ticket?.client_contact_email);
 
     return (
         <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
@@ -95,49 +101,46 @@ export default function TicketPage() {
                         />
                     }
                 >
-                    <Card>
-                        <CardHeader>
-                            <View style={styles.headerRow}>
-                                <View
-                                    style={[styles.dot, { backgroundColor: priorityColor(ticket?.priority, colors) }]}
-                                />
-                                <Text style={[styles.headerTitle, { color: colors.textPrimary }]} numberOfLines={3}>
-                                    {ticket?.title}
+                    <Card style={styles.summaryCard}>
+                        <View style={styles.headerRow}>
+                            <View
+                                style={[styles.dot, { backgroundColor: priorityColor(ticket?.priority, colors) }]}
+                            />
+                            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
+                                {ticket?.title}
+                            </Text>
+                        </View>
+
+                        <View style={styles.chipRow}>
+                            <View style={[styles.chip, { backgroundColor: colors.primary + '1A' }]}>
+                                <Text style={[styles.chipText, { color: colors.primary }]}>
+                                    {ticket?.completed_at ? 'Completed' : 'Open'}
                                 </Text>
                             </View>
-                        </CardHeader>
 
-                        <View style={styles.inner}>
-                            <LabelValue label="Status" value={ticket?.completed_at ? 'Completed' : 'Open'} />
-                            <LabelValue label="Priority" value={priorityLabel(ticket?.priority)} />
-                            <LabelValue label="Client" value={ticket?.client?.name} />
-                            <LabelValue label="Created" value={dateTime(ticket?.created_at)} />
-                            <LabelValue
-                                label="Updated"
-                                value={relativeTime(ticket?.updated_at)}
-                                last={!ticket?.completed_at}
-                            />
-                            {ticket?.completed_at ? (
-                                <LabelValue label="Completed" value={dateTime(ticket.completed_at)} last />
+                            <View
+                                style={[
+                                    styles.chip,
+                                    styles.priorityChip,
+                                    { borderColor: priorityColor(ticket?.priority, colors) },
+                                ]}
+                            >
+                                <Text style={[styles.chipText, { color: priorityColor(ticket?.priority, colors) }]}>
+                                    {priorityLabel(ticket?.priority)}
+                                </Text>
+                            </View>
+
+                            {isMine(ticket, staff) ? (
+                                <View style={[styles.chip, { backgroundColor: colors.primary + '1A' }]}>
+                                    <Text style={[styles.chipText, { color: colors.primary }]}>You</Text>
+                                </View>
                             ) : null}
+
+                            <Text style={[styles.updated, { color: colors.textSecondary }]}>
+                                {`Updated ${relativeTime(ticket?.updated_at || ticket?.created_at)}`}
+                            </Text>
                         </View>
                     </Card>
-
-                    {reporter ? (
-                        <Card>
-                            <CardHeader title="Reported by" />
-                            <View style={styles.inner}>
-                                <ContactRow
-                                    name={reporter.name
-                                        || `${reporter.fname || ''} ${reporter.sname || ''}`.trim()
-                                        || 'Unknown'}
-                                    subtitle={reporter.position}
-                                    phone={reporter.phone}
-                                    email={reporter.email}
-                                />
-                            </View>
-                        </Card>
-                    ) : null}
 
                     <Card>
                         <CardHeader title="Description" />
@@ -157,6 +160,77 @@ export default function TicketPage() {
                             )}
                         </View>
                     </Card>
+
+                    {contactName ? (
+                        <Card>
+                            <CardHeader title="Reported by" />
+                            <View style={styles.contactRow}>
+                                <Avatar
+                                    uri={ticket?.client_contact_photo}
+                                    name={contactName}
+                                    id={ticket?.client_contact_id}
+                                    size={40}
+                                />
+                                <View style={styles.contactCopy}>
+                                    <Text
+                                        style={[styles.contactName, { color: colors.textPrimary }]}
+                                        numberOfLines={1}
+                                    >
+                                        {contactName}
+                                    </Text>
+                                    {contactMeta ? (
+                                        <Text
+                                            style={[styles.contactMeta, { color: colors.textSecondary }]}
+                                            numberOfLines={1}
+                                        >
+                                            {contactMeta}
+                                        </Text>
+                                    ) : null}
+                                </View>
+                                <View style={styles.contactActions}>
+                                    <IconButton
+                                        icon="call-outline"
+                                        label={`Call ${contactName}`}
+                                        disabled={!contactDial}
+                                        onPress={() => Linking.openURL(contactDial)}
+                                    />
+                                    <IconButton
+                                        icon="mail-outline"
+                                        label={`Email ${contactName}`}
+                                        disabled={!contactMail}
+                                        onPress={() => Linking.openURL(contactMail)}
+                                    />
+                                </View>
+                            </View>
+                        </Card>
+                    ) : null}
+
+                    <Card>
+                        <CardHeader>
+                            <View style={styles.detailsHeaderRow}>
+                                <Text style={[styles.detailsTitle, { color: colors.textPrimary }]}>
+                                    Details
+                                </Text>
+                                <TouchableOpacity onPress={() => router.push('/client/' + ticket?.client?.id)}>
+                                    <Text style={[styles.detailsMeta, { color: colors.primary }]}>
+                                        Open client
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        </CardHeader>
+                        <View style={styles.inner}>
+                            <LabelValue label="Client" value={ticket?.client?.name} />
+                            <LabelValue label="Created" value={dateTime(ticket?.created_at)} />
+                            <LabelValue
+                                label="Assigned"
+                                value={ticket?.assignees?.map((a) => a.name)?.join(', ')}
+                                last={!ticket?.completed_at}
+                            />
+                            {ticket?.completed_at ? (
+                                <LabelValue label="Completed" value={dateTime(ticket.completed_at)} last />
+                            ) : null}
+                        </View>
+                    </Card>
                 </ScrollView>
             )}
         </SafeAreaView>
@@ -166,8 +240,22 @@ export default function TicketPage() {
 const styles = StyleSheet.create({
     screen: { flex: 1 },
     scroll: { padding: 16, gap: cardGap },
-    headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, flex: 1 },
-    dot: { width: 9, height: 9, borderRadius: 5, marginTop: 6 },
-    headerTitle: { flex: 1, fontSize: 15, fontWeight: '700', lineHeight: 20 },
+    summaryCard: { paddingVertical: 14, paddingHorizontal: 16, gap: 10 },
+    headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+    dot: { width: 9, height: 9, borderRadius: 4.5, marginTop: 6 },
+    headerTitle: { flex: 1, fontSize: 16, fontWeight: '700', lineHeight: 21 },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center' },
+    chip: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999 },
+    priorityChip: { borderWidth: 1, backgroundColor: 'transparent' },
+    chipText: { fontSize: 11, fontWeight: '700' },
+    updated: { fontSize: 11, fontWeight: '600' },
     inner: { ...cardBodyPadding },
+    contactRow: { flexDirection: 'row', alignItems: 'center', gap: 12, ...cardBodyPadding },
+    contactCopy: { flex: 1, gap: 2 },
+    contactName: { fontSize: 15, fontWeight: '700' },
+    contactMeta: { fontSize: 12 },
+    contactActions: { flexDirection: 'row', gap: 8 },
+    detailsHeaderRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    detailsTitle: { fontSize: 15, fontWeight: '700' },
+    detailsMeta: { fontSize: 13, fontWeight: '600' },
 });
