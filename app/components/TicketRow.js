@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import Theme from '../context/ThemeContext';
 import Avatar from './Avatar';
 import { priorityColor } from '../utils/tickets';
-import { relativeTime } from '../utils/datetime';
+import { relativeTime, ageDays } from '../utils/datetime';
 
 // One ticket inside a card list, laid out like the Qobox student row: avatar,
 // copy, chevron, with a divider above every row but the first (the card's
@@ -19,6 +19,11 @@ export default function TicketRow({ ticket, index, mine = false, showClient = tr
     const { useTheme } = Theme;
     const { theme } = useTheme();
     const { colors } = theme;
+
+    // "#1234  (27d)": the age in whole days since the ticket was created, the
+    // way the web list shows it, two spaces after the reference.
+    const age = ageDays(ticket.created_at);
+    const ref = `#${ticket.ticket_ref_with_check_digit || ticket.ticket_ref}${age != null ? `  (${age}d)` : ''}`;
 
     const meta = [
         showClient ? ticket.client_name : null,
@@ -38,9 +43,7 @@ export default function TicketRow({ ticket, index, mine = false, showClient = tr
             <View style={styles.copy}>
                 <View style={styles.refRow}>
                     <View style={[styles.dot, { backgroundColor: priorityColor(ticket.priority, colors) }]} />
-                    <Text style={[styles.ref, { color: colors.textSecondary }]}>
-                        #{ticket.ticket_ref_with_check_digit || ticket.ticket_ref}
-                    </Text>
+                    <Text style={[styles.ref, { color: colors.textSecondary }]}>{ref}</Text>
                     {mine ? (
                         <View style={[styles.chip, { backgroundColor: colors.primary + '1A' }]}>
                             <Text style={[styles.chipText, { color: colors.primary }]}>You</Text>

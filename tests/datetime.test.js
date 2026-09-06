@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseApiDate, shortDate } from '../app/utils/datetime.js';
+import { parseApiDate, shortDate, ageDays } from '../app/utils/datetime.js';
 
 describe('parseApiDate', () => {
     it('parses the postgres shape hermes rejects', () => {
@@ -20,5 +20,28 @@ describe('parseApiDate', () => {
         expect(parseApiDate('')).toBeNull();
         expect(parseApiDate('not a date')).toBeNull();
         expect(shortDate('not a date')).toBeNull();
+    });
+});
+
+describe('ageDays', () => {
+    // Mirrors the web app's ticketAge: whole days since created_at, truncated.
+    const now = new Date('2026-09-06T13:30:00+10:00');
+
+    it('counts whole days since the date', () => {
+        expect(ageDays('2026-08-13 09:00:00+10', now)).toBe(24);
+    });
+
+    it('truncates rather than rounds up', () => {
+        expect(ageDays('2026-09-05T14:00:00+10:00', now)).toBe(0);
+    });
+
+    it('handles the postgres shape', () => {
+        expect(ageDays('2026-08-10 11:14:39.172909+10', now)).toBe(27);
+    });
+
+    it('returns null for nothing or garbage', () => {
+        expect(ageDays(null, now)).toBeNull();
+        expect(ageDays('', now)).toBeNull();
+        expect(ageDays('not a date', now)).toBeNull();
     });
 });

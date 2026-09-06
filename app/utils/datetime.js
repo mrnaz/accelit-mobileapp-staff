@@ -34,3 +34,12 @@ export function dateTime(value) {
 
     return parsed ? parsed.format('D MMM YYYY, h:mma') : null;
 }
+
+// Whole days since `value`, truncated, the way the web ticket list's
+// ticketAge does it: dayjs().diff(created_at, 'day'). `now` is injectable so
+// tests can pin the clock.
+export function ageDays(value, now = new Date()) {
+    const parsed = parseApiDate(value);
+
+    return parsed ? moment(now).diff(parsed, 'days') : null;
+}
