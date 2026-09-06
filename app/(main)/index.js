@@ -86,25 +86,27 @@ export default function Home() {
                     const badge = item.key === 'tickets' ? yourTickets.length : 0;
 
                     return (
-                        <Card key={item.key} onPress={() => router.push(item.href)} style={styles.tile}>
-                            <View style={styles.tileTop}>
-                                <View style={[styles.iconCircle, { backgroundColor: colors.primary + '1A' }]}>
-                                    <FontAwesome name={item.icon} size={17} color={colors.primary} />
-                                </View>
-                                {badge > 0 ? (
-                                    <View style={[styles.badge, { backgroundColor: colors.primary + '1A' }]}>
-                                        <Text style={[styles.badgeText, { color: colors.primary }]}>{badge}</Text>
+                        <View key={item.key} style={styles.tileWrap}>
+                            <Card onPress={() => router.push(item.href)} style={styles.tile}>
+                                <View style={styles.tileTop}>
+                                    <View style={[styles.iconCircle, { backgroundColor: colors.primary + '1A' }]}>
+                                        <FontAwesome name={item.icon} size={17} color={colors.primary} />
                                     </View>
-                                ) : null}
-                            </View>
+                                    {badge > 0 ? (
+                                        <View style={[styles.badge, { backgroundColor: colors.primary + '1A' }]}>
+                                            <Text style={[styles.badgeText, { color: colors.primary }]}>{badge}</Text>
+                                        </View>
+                                    ) : null}
+                                </View>
 
-                            <View style={styles.tileCopy}>
-                                <Text style={[styles.tileLabel, { color: colors.textPrimary }]}>{item.label}</Text>
-                                {stat ? (
-                                    <Text style={[styles.tileStat, { color: colors.textSecondary }]}>{stat}</Text>
-                                ) : null}
-                            </View>
-                        </Card>
+                                <View style={styles.tileCopy}>
+                                    <Text style={[styles.tileLabel, { color: colors.textPrimary }]}>{item.label}</Text>
+                                    {stat ? (
+                                        <Text style={[styles.tileStat, { color: colors.textSecondary }]}>{stat}</Text>
+                                    ) : null}
+                                </View>
+                            </Card>
+                        </View>
                     );
                 })}
             </View>
@@ -128,7 +130,11 @@ export default function Home() {
 const styles = StyleSheet.create({
     scroll: { padding: 16, gap: cardGap },
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-    tile: { width: '48%', padding: 14, minHeight: 96, justifyContent: 'space-between' },
+    // Card sends its `style` to the inner clipping view, not the outer
+    // TouchableOpacity that actually sizes itself in the grid row — so the
+    // column width has to live on this wrapper instead of on the Card.
+    tileWrap: { width: '48%' },
+    tile: { padding: 14, minHeight: 96, justifyContent: 'space-between' },
     tileTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     iconCircle: {
         width: 38, height: 38, borderRadius: 19,
