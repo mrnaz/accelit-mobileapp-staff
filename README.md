@@ -25,6 +25,12 @@ npm start
 `EXPO_PUBLIC_API_URL` must be the **admin** host (the one `APP_ADMIN_URL` names in
 the backend). The client-portal host serves a different route set and will 404.
 
+On a real phone it has to be a host the phone can resolve over the VPN — the
+staging or production host. A local `.test` domain only resolves on the machine
+running Valet, and substituting that machine's LAN IP 404s, because the API's
+routes are bound to the admin domain and would see the wrong `Host` header. A
+simulator running on the same Mac can use the `.test` domain.
+
 ```bash
 npm test        # unit tests for the pure helpers
 npx expo-doctor # config and dependency check
