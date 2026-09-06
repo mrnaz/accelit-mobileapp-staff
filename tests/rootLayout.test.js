@@ -63,6 +63,14 @@ vi.mock('expo-router', async () => {
     };
 });
 
+// The root layout hands React Navigation a theme derived from the app's own
+// mode; the real package pulls in react-native, so stand in for it here.
+vi.mock('@react-navigation/native', () => ({
+    ThemeProvider: ({ children }) => children,
+    DarkTheme: { dark: true, colors: {} },
+    DefaultTheme: { dark: false, colors: {} },
+}));
+
 vi.mock('../app/services/api', () => ({
     default: { restore: mocks.restore, me: mocks.me },
 }));

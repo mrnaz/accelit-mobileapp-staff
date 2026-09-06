@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
+import { ThemeProvider as NavigationThemeProvider, DarkTheme, DefaultTheme } from '@react-navigation/native';
 import Theme from './context/ThemeContext';
 import { StaffProvider } from './context/StaffContext';
 import api from './services/api';
@@ -50,8 +51,32 @@ const useProtectedRoute = () => {
 
 const RootLayoutInner = React.memo(function RootLayoutInner() {
     const { isChecking, authenticated, inAuthGroup } = useProtectedRoute();
+    const { useTheme } = Theme;
+    const { theme, mode } = useTheme();
 
-    if (isChecking) return <View style={{ flex: 1 }} />;
+    // React Navigation paints every tab scene and stack card with its own
+    // theme's background before the screen renders, and expo-router hands it
+    // the light DefaultTheme unless told otherwise. That is why the dark app
+    // theme still showed a light grey page behind the lists. Derive the
+    // navigation theme from the app's own mode so navigators and screens agree.
+    const navigationTheme = useMemo(() => {
+        const base = mode === 'dark' ? DarkTheme : DefaultTheme;
+        const { colors } = theme;
+
+        return {
+            ...base,
+            colors: {
+                ...base.colors,
+                primary: colors.primary,
+                background: colors.background,
+                card: colors.surface,
+                text: colors.textPrimary,
+                border: colors.border,
+            },
+        };
+    }, [mode, theme]);
+
+    if (isChecking) return <View style={{ flex: 1, backgroundColor: theme.colors.background }} />;
 
     // The staff profile is app-wide state. The client/ticket/onboarding detail
     // stacks sit beside (main) under this root Stack, not inside it, so the
@@ -60,9 +85,11 @@ const RootLayoutInner = React.memo(function RootLayoutInner() {
     // auth flow: GET /api/me without a token 401s, and the api client answers
     // a 401 by wiping the session and bouncing to login.
     return (
-        <StaffProvider enabled={authenticated && !inAuthGroup}>
-            <Stack screenOptions={STACK_OPTIONS} />
-        </StaffProvider>
+        <NavigationThemeProvider value={navigationTheme}>
+            <StaffProvider enabled={authenticated && !inAuthGroup}>
+                <Stack screenOptions={STACK_OPTIONS} />
+            </StaffProvider>
+        </NavigationThemeProvider>
     );
 });
 
