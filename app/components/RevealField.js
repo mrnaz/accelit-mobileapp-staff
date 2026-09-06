@@ -1,7 +1,8 @@
-import React, { useCallback, useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Platform, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+    View, Text, TouchableOpacity, ActivityIndicator, AppState, Platform, StyleSheet,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Clipboard from 'expo-clipboard';
 import Theme from '../context/ThemeContext';
 
 const MASK = '••••••••••••';
@@ -11,6 +12,15 @@ const MASK = '••••••••••••';
 // on a sticky note. `large` renders the value big and monospaced for the
 // onboarding screen, where it is read off the phone while being typed into a
 // machine.
+//
+// A password is displayed and then discarded, never saved anywhere on the
+// device. That rules out three things this field used to allow or could
+// allow: no copy button (the clipboard outlives the app, other apps read it,
+// and iOS syncs it between devices), no selectable text (the selection menu
+// is a copy button by another name), and no staying revealed when the app
+// leaves the foreground (the OS writes the app-switcher snapshot to disk).
+// The value lives only in this component's state, which goes with it when
+// the screen or tab unmounts.
 export default function RevealField({ label, value, onReveal, large }) {
     const { useTheme } = Theme;
     const { theme } = useTheme();
@@ -19,8 +29,15 @@ export default function RevealField({ label, value, onReveal, large }) {
     const [revealed, setRevealed] = useState(false);
     const [busy, setBusy] = useState(false);
     const [resolved, setResolved] = useState(value ?? null);
-    const [copied, setCopied] = useState(false);
     const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', (state) => {
+            if (state !== 'active') setRevealed(false);
+        });
+
+        return () => subscription.remove();
+    }, []);
 
     const toggle = useCallback(async () => {
         if (revealed) {
@@ -52,14 +69,6 @@ export default function RevealField({ label, value, onReveal, large }) {
         }
     }, [revealed, resolved, onReveal]);
 
-    const copy = useCallback(async () => {
-        if (resolved == null) return;
-
-        await Clipboard.setStringAsync(String(resolved));
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1600);
-    }, [resolved]);
-
     return (
         <View style={styles.wrap}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
@@ -71,7 +80,7 @@ export default function RevealField({ label, value, onReveal, large }) {
                         { color: revealed ? colors.textPrimary : colors.textSecondary },
                     ]}
                     numberOfLines={large ? 1 : 2}
-                    selectable={revealed}
+                    selectable={false}
                 >
                     {revealed ? (resolved ?? '—') : MASK}
                 </Text>
@@ -91,21 +100,6 @@ export default function RevealField({ label, value, onReveal, large }) {
                             color={colors.primary}
                           />}
                 </TouchableOpacity>
-
-                {revealed && resolved != null ? (
-                    <TouchableOpacity
-                        onPress={copy}
-                        style={[styles.action, { borderColor: colors.border }]}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Copy ${label}`}
-                    >
-                        <Ionicons
-                            name={copied ? 'checkmark' : 'copy-outline'}
-                            size={16}
-                            color={copied ? colors.success : colors.primary}
-                        />
-                    </TouchableOpacity>
-                ) : null}
             </View>
 
             {error ? <Text style={[styles.error, { color: colors.error }]}>{error}</Text> : null}

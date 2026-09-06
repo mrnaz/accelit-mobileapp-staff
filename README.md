@@ -14,6 +14,27 @@ network. Start the VPN before opening the app. If it is off, the app says so on
 launch rather than showing a password box that cannot succeed, and a VPN drop
 mid-session routes back to that screen rather than to a misleading login error.
 
+## Passwords are displayed, never stored
+
+Client passwords and local-admin passwords are shown on request and discarded.
+The app never writes one anywhere on the device:
+
+- Nothing password-shaped goes into AsyncStorage. The only persisted values are
+  the auth token, the remembered-device token, the theme and the staff profile
+  with its TOTP seed stripped.
+- There is no copy button and the revealed text is not selectable, so a
+  password cannot reach the clipboard, which outlives the app, is readable by
+  other apps and syncs between Apple devices.
+- A revealed password is masked again the moment the app leaves the
+  foreground, so it is not in the app-switcher snapshot the OS writes to disk.
+- The values live only in the state of the tab or screen showing them and go
+  when that unmounts.
+
+One thing the app cannot control: iOS keeps an HTTP cache, and the API answers
+with `Cache-Control: no-cache, private`, which permits storing the body. Adding
+`cache.headers:no_store` to the passwords and asset-onboarding routes in the
+backend closes that; it is a backend change.
+
 ## Running it
 
 ```bash
