@@ -16,7 +16,7 @@ import LogoutButton from './LogoutButton';
 // avatar opens a second sheet with the account controls.
 export default function StaffInfo() {
     const { useTheme } = Theme;
-    const { theme } = useTheme();
+    const { theme, mode } = useTheme();
     const { colors } = theme;
     const insets = useSafeAreaInsets();
     const { staff } = useStaff();
@@ -44,8 +44,13 @@ export default function StaffInfo() {
                 accessibilityRole="button"
                 accessibilityLabel="Open menu"
             >
+                {/* The brand mark, cut from the web app's logo. icon.png is the
+                    white wordmark and disappears on the light surface, so the
+                    mark swaps with the theme: navy on light, white on dark. */}
                 <Image
-                    source={require('../../assets/icon.png')}
+                    source={mode === 'dark'
+                        ? require('../../assets/logo-mark-light.png')
+                        : require('../../assets/logo-mark-dark.png')}
                     style={styles.logo}
                     resizeMode="contain"
                 />
