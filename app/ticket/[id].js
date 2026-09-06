@@ -65,11 +65,27 @@ export default function TicketPage() {
 
     const body = ticket?.body?.trim();
 
-    const contactName = ticket?.client_contact_full_name;
-    const contactMeta = [ticket?.client_contact_position, formatPhone(ticket?.client_contact_phone)]
-        .filter(Boolean).join(' · ');
-    const contactDial = dialUri(ticket?.client_contact_phone);
-    const contactMail = mailUri(ticket?.client_contact_email);
+    // The single ticket endpoint carries the reporter inside `affected_users`
+    // rather than as flat fields on the ticket itself — the reporter-flagged
+    // entry when there is one, else the first affected user.
+    const reporter = useMemo(() => {
+        const users = Array.isArray(ticket?.affected_users) ? ticket.affected_users : [];
+
+        return users.find((u) => u.reporter) || users[0] || null;
+    }, [ticket]);
+
+    const contactName = reporter && (reporter.client_contact_full_name
+        || reporter.name
+        || `${reporter.fname || ''} ${reporter.sname || ''}`.trim()
+        || 'Unknown');
+    const contactPosition = reporter?.client_contact_position || reporter?.position;
+    const contactPhone = reporter?.client_contact_phone || reporter?.phone;
+    const contactEmail = reporter?.client_contact_email || reporter?.email;
+    const contactPhoto = reporter?.client_contact_photo || reporter?.photo;
+    const contactId = reporter?.client_contact_id || reporter?.id;
+    const contactMeta = [contactPosition, formatPhone(contactPhone)].filter(Boolean).join(' · ');
+    const contactDial = dialUri(contactPhone);
+    const contactMail = mailUri(contactEmail);
 
     return (
         <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
@@ -161,14 +177,14 @@ export default function TicketPage() {
                         </View>
                     </Card>
 
-                    {contactName ? (
+                    {reporter ? (
                         <Card>
                             <CardHeader title="Reported by" />
                             <View style={styles.contactRow}>
                                 <Avatar
-                                    uri={ticket?.client_contact_photo}
+                                    uri={contactPhoto}
                                     name={contactName}
-                                    id={ticket?.client_contact_id}
+                                    id={contactId}
                                     size={40}
                                 />
                                 <View style={styles.contactCopy}>
