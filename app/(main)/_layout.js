@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
 import Theme from '../context/ThemeContext';
-import { StaffProvider, useStaff } from '../context/StaffContext';
+import { useStaff } from '../context/StaffContext';
 import StaffInfo from '../components/StaffInfo';
 
 // Title + icon per route. The glyph matches the one in the Jump-to grid, so the
@@ -90,18 +90,18 @@ export default function MainLayout() {
         [renderHeader],
     );
 
+    // The staff profile comes from the StaffProvider in the root layout, which
+    // also covers the client/ticket/onboarding detail stacks beside this group.
     return (
-        <StaffProvider>
-            <ThemeBackground>
-                <Tabs tabBar={renderTabBar} screenOptions={screenOptions}>
-                    <Tabs.Screen name="index" options={{ title: 'Dashboard' }} />
-                    <Tabs.Screen name="clients" options={{ title: 'Clients' }} />
-                    <Tabs.Screen name="tickets" options={{ title: 'Tickets' }} />
-                    <Tabs.Screen name="onboarding" options={{ title: 'Asset Onboarding' }} />
-                    <Tabs.Screen name="address-book" options={{ title: 'Address Book' }} />
-                </Tabs>
-            </ThemeBackground>
-        </StaffProvider>
+        <ThemeBackground>
+            <Tabs tabBar={renderTabBar} screenOptions={screenOptions}>
+                <Tabs.Screen name="index" options={{ title: 'Dashboard' }} />
+                <Tabs.Screen name="clients" options={{ title: 'Clients' }} />
+                <Tabs.Screen name="tickets" options={{ title: 'Tickets' }} />
+                <Tabs.Screen name="onboarding" options={{ title: 'Asset Onboarding' }} />
+                <Tabs.Screen name="address-book" options={{ title: 'Address Book' }} />
+            </Tabs>
+        </ThemeBackground>
     );
 }
 

@@ -32,7 +32,7 @@ routes are bound to the admin domain and would see the wrong `Host` header. A
 simulator running on the same Mac can use the `.test` domain.
 
 ```bash
-npm test        # unit tests for the pure helpers
+npm test        # unit tests for the pure helpers, plus the root layout (jsdom)
 npx expo-doctor # config and dependency check
 ```
 

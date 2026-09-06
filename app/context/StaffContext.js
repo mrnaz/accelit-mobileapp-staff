@@ -1,4 +1,6 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, {
+    createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
+} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
 
@@ -10,19 +12,33 @@ const StaffContext = createContext(null);
 // sysadmin, client_access_*, ticket_access, permission_addressbook and
 // permission_assetlist. Almost every gate in the backend is `$user->sysadmin`,
 // so the app reads those flags rather than the `abilities` list.
-export function StaffProvider({ children }) {
+//
+// Mounted once at the root, above the auth screens, so `enabled` is what says
+// "there is a session to describe". While it is off the provider holds nothing
+// and fetches nothing; when it turns off again (sign out, or the api client's
+// 401 handling) the last session's profile is dropped so the next sign-in
+// cannot briefly show someone else's name.
+export function StaffProvider({ enabled = true, children }) {
     const [staff, setStaff] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(enabled);
     const [error, setError] = useState(null);
 
+    // Bumped every time `enabled` changes. A fetch started under an earlier
+    // session must not land after the session ended — it would repopulate a
+    // profile and a cache that were just cleared.
+    const session = useRef(0);
+
     const load = useCallback(async ({ useCache = true } = {}) => {
+        const mine = session.current;
+        const current = () => mine === session.current;
+
         setError(null);
 
         if (useCache) {
             try {
                 const cached = await AsyncStorage.getItem(STAFF_CACHE_KEY);
 
-                if (cached) setStaff(JSON.parse(cached));
+                if (cached && current()) setStaff(JSON.parse(cached));
             } catch {
                 // A bad cache entry is not worth failing over — the fetch below
                 // is the real source anyway.
@@ -31,6 +47,8 @@ export function StaffProvider({ children }) {
 
         try {
             const me = await api.me();
+
+            if (!current()) return;
 
             // Never persist the TOTP seed /api/me returns for the user's own
             // account. The app has no use for it and a cache is the last place
@@ -42,13 +60,26 @@ export function StaffProvider({ children }) {
         } catch (err) {
             // A 401 is already handled globally by the api client, which wipes
             // the token and routes to login.
-            if (err.status !== 401) setError(err.message);
+            if (current() && err.status !== 401) setError(err.message);
         } finally {
-            setLoading(false);
+            if (current()) setLoading(false);
         }
     }, []);
 
-    useEffect(() => { load(); }, [load]);
+    useEffect(() => {
+        session.current += 1;
+
+        if (!enabled) {
+            setStaff(null);
+            setError(null);
+            setLoading(false);
+
+            return;
+        }
+
+        setLoading(true);
+        load();
+    }, [enabled, load]);
 
     const value = useMemo(
         () => ({ staff, loading, error, reload: () => load({ useCache: false }) }),

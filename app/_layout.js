@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import Theme from './context/ThemeContext';
+import { StaffProvider } from './context/StaffContext';
 import api from './services/api';
 
 const { ThemeProvider } = Theme;
@@ -12,18 +13,22 @@ const useProtectedRoute = () => {
     const segments = useSegments();
     const router = useRouter();
     const [isChecking, setIsChecking] = useState(true);
+    const [authenticated, setAuthenticated] = useState(false);
+
+    const inAuthGroup = segments[0] === '(auth)';
 
     useEffect(() => {
         const checkAuth = async () => {
             try {
                 if (segments.length === 0) return;
 
-                const inAuthGroup = segments[0] === '(auth)';
                 // Restore the token on every navigation rather than only on the
                 // index route: booting straight into a detail screen via a deep
                 // link would otherwise leave the client unauthenticated and 401
                 // every request.
                 const token = await api.restore();
+
+                setAuthenticated(!!token);
 
                 if (!token && !inAuthGroup) {
                     router.replace('/(auth)/login');
@@ -40,15 +45,25 @@ const useProtectedRoute = () => {
         checkAuth();
     }, [segments]);
 
-    return isChecking;
+    return { isChecking, authenticated, inAuthGroup };
 };
 
 const RootLayoutInner = React.memo(function RootLayoutInner() {
-    const isChecking = useProtectedRoute();
+    const { isChecking, authenticated, inAuthGroup } = useProtectedRoute();
 
     if (isChecking) return <View style={{ flex: 1 }} />;
 
-    return <Stack screenOptions={STACK_OPTIONS} />;
+    // The staff profile is app-wide state. The client/ticket/onboarding detail
+    // stacks sit beside (main) under this root Stack, not inside it, so the
+    // provider has to live here rather than in the tabs layout. It only
+    // fetches once a real token has been restored and the user is out of the
+    // auth flow: GET /api/me without a token 401s, and the api client answers
+    // a 401 by wiping the session and bouncing to login.
+    return (
+        <StaffProvider enabled={authenticated && !inAuthGroup}>
+            <Stack screenOptions={STACK_OPTIONS} />
+        </StaffProvider>
+    );
 });
 
 export default function RootLayout() {
