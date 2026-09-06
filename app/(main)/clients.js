@@ -1,20 +1,29 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, FlatList, RefreshControl, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { View, Text, FlatList, RefreshControl, TouchableOpacity, Linking, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import Theme from '../context/ThemeContext';
 import api from '../services/api';
-import Card, { cardGap } from '../components/Card';
+import Card, { CardHeader, cardGap } from '../components/Card';
+import Avatar from '../components/Avatar';
+import IconButton from '../components/IconButton';
 import ScreenState from '../components/ScreenState';
 import SearchField from '../components/SearchField';
 import Pills from '../components/Pills';
 import useDebounced from '../utils/useDebounced';
+import { clientMeta } from '../utils/clients';
+import { dialUri } from '../utils/phone';
 
 const FILTERS = [
     { value: 'active', label: 'Active' },
     { value: 'inactive', label: 'Inactive' },
     { value: 'all', label: 'All' },
 ];
+
+// The list is one card, like the tickets tab: a header band with the filter
+// and the total, then every row separated by dividers. The FlatList carries
+// that single card so pull-to-refresh keeps working.
+const CARD = [{ key: 'clients-card' }];
 
 // GET /api/clients returns a BARE ARRAY, every accessible client in one
 // response, with no pagination and a `search` parameter the backend ignores.
@@ -70,44 +79,44 @@ export default function Clients() {
         return list;
     }, [rows, filter, term]);
 
-    const renderItem = useCallback(({ item }) => {
-        const suburb = item.primary_site?.address?.suburbcity;
-        const open = Number(item.open_tickets) || 0;
+    // GET /api/clients does not return `phone` on list rows (only the client
+    // detail endpoint does), so the call button is always dimmed here rather
+    // than dialling a number nobody sent.
+    const callUri = dialUri(null);
 
-        return (
-            <Card onPress={() => router.push(`/client/${item.id}`)} style={styles.card}>
-                <View style={styles.row}>
-                    {item.logo ? (
-                        <Image source={{ uri: item.logo }} style={styles.logo} resizeMode="contain" />
-                    ) : (
-                        <View style={[styles.logo, styles.logoFallback, { backgroundColor: colors.primary + '1A' }]}>
-                            <Text style={{ color: colors.primary, fontWeight: '700' }}>
-                                {(item.name || '?')[0].toUpperCase()}
-                            </Text>
-                        </View>
-                    )}
+    const renderCard = useCallback(() => (
+        <Card>
+            <CardHeader title={FILTERS.find((f) => f.value === filter).label} meta={visible.length} />
+            {visible.map((item, index) => (
+                <TouchableOpacity
+                    key={String(item.id)}
+                    activeOpacity={0.85}
+                    onPress={() => router.push(`/client/${item.id}`)}
+                    style={[styles.row, index > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
+                >
+                    <Avatar uri={item.logo} name={item.name} id={item.id} size={40} />
 
                     <View style={styles.copy}>
                         <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
                             {item.name}
                         </Text>
                         <Text style={[styles.meta, { color: colors.textSecondary }]} numberOfLines={1}>
-                            {[suburb, item.status === 'inactive' ? 'Inactive' : null]
-                                .filter(Boolean).join(' · ') || '—'}
+                            {clientMeta(item)}
                         </Text>
                     </View>
 
-                    {open > 0 ? (
-                        <View style={[styles.badge, { backgroundColor: colors.primary + '1A' }]}>
-                            <Text style={[styles.badgeText, { color: colors.primary }]}>{open}</Text>
-                        </View>
-                    ) : null}
+                    <IconButton
+                        icon="call-outline"
+                        label={`Call ${item.name}`}
+                        disabled={!callUri}
+                        onPress={() => Linking.openURL(callUri)}
+                    />
 
                     <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-                </View>
-            </Card>
-        );
-    }, [colors]);
+                </TouchableOpacity>
+            ))}
+        </Card>
+    ), [visible, filter, colors, callUri]);
 
     return (
         <View style={styles.screen}>
@@ -117,9 +126,9 @@ export default function Clients() {
             </View>
 
             <FlatList
-                data={visible}
-                keyExtractor={(item) => String(item.id)}
-                renderItem={renderItem}
+                data={visible.length ? CARD : []}
+                keyExtractor={(item) => item.key}
+                renderItem={renderCard}
                 contentContainerStyle={styles.list}
                 refreshControl={
                     <RefreshControl
@@ -148,13 +157,14 @@ const styles = StyleSheet.create({
     screen: { flex: 1 },
     controls: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 10, gap: 10 },
     list: { paddingHorizontal: 16, paddingBottom: 24, gap: cardGap, flexGrow: 1 },
-    card: { padding: 12 },
-    row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    logo: { width: 40, height: 40, borderRadius: 8 },
-    logoFallback: { alignItems: 'center', justifyContent: 'center' },
+    row: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+    },
     copy: { flex: 1, gap: 2 },
     name: { fontSize: 15, fontWeight: '700' },
     meta: { fontSize: 12 },
-    badge: { minWidth: 26, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, alignItems: 'center' },
-    badgeText: { fontSize: 12, fontWeight: '700' },
 });
