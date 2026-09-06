@@ -1,23 +1,22 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, FlatList, RefreshControl, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { View, FlatList, RefreshControl, StyleSheet } from 'react-native';
 import Theme from '../../context/ThemeContext';
 import api from '../../services/api';
-import Card, { cardGap } from '../Card';
+import Card, { CardHeader, cardGap } from '../Card';
+import TicketRow from '../TicketRow';
 import ScreenState from '../ScreenState';
 import Pills from '../Pills';
-import { priorityColor, priorityLabel } from '../../utils/tickets';
-import { relativeTime } from '../../utils/datetime';
 
 const FILTERS = [
     { value: 'open', label: 'Open' },
     { value: 'done', label: 'Completed' },
 ];
 
-// Note: GET /api/clients/{client}/tickets returns a different column set from
-// the global list — ticket_level is absent here — so this renders its own row
-// rather than sharing one with the Tickets screen.
+// One card holding every row, like the Qobox student list. Rows come from the
+// shared TicketRow without the client avatar: every ticket here belongs to
+// the client whose page this is.
+const CARD = [{ key: 'client-tickets-card' }];
+
 export default function TicketsTab({ clientId }) {
     const { useTheme } = Theme;
     const { theme } = useTheme();
@@ -47,6 +46,15 @@ export default function TicketsTab({ clientId }) {
 
     useEffect(() => { load(); }, [load]);
 
+    const renderCard = useCallback(() => (
+        <Card>
+            <CardHeader title={filter === 'done' ? 'Completed' : 'Open'} meta={rows.length} />
+            {rows.map((item, index) => (
+                <TicketRow key={String(item.id)} ticket={item} index={index} showClient={false} />
+            ))}
+        </Card>
+    ), [rows, filter]);
+
     return (
         <View style={styles.wrap}>
             <View style={styles.controls}>
@@ -54,29 +62,10 @@ export default function TicketsTab({ clientId }) {
             </View>
 
             <FlatList
-                data={rows}
-                keyExtractor={(item) => String(item.id)}
+                data={rows.length ? CARD : []}
+                keyExtractor={(item) => item.key}
+                renderItem={renderCard}
                 contentContainerStyle={styles.list}
-                renderItem={({ item }) => (
-                    <Card onPress={() => router.push(`/ticket/${item.id}`)} style={styles.card}>
-                        <View style={styles.row}>
-                            <View style={[styles.dot, { backgroundColor: priorityColor(item.priority, colors) }]} />
-                            <View style={styles.copy}>
-                                <Text style={[styles.ref, { color: colors.textSecondary }]}>
-                                    #{item.ticket_ref_with_check_digit || item.ticket_ref}
-                                </Text>
-                                <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={2}>
-                                    {item.title}
-                                </Text>
-                                <Text style={[styles.meta, { color: colors.textSecondary }]} numberOfLines={1}>
-                                    {[priorityLabel(item.priority), relativeTime(item.latest_action || item.created_at)]
-                                        .filter(Boolean).join(' · ')}
-                                </Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-                        </View>
-                    </Card>
-                )}
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
@@ -102,11 +91,4 @@ const styles = StyleSheet.create({
     wrap: { flex: 1 },
     controls: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10 },
     list: { paddingHorizontal: 16, paddingBottom: 24, gap: cardGap, flexGrow: 1 },
-    card: { padding: 12 },
-    row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-    dot: { width: 9, height: 9, borderRadius: 5, marginTop: 6 },
-    copy: { flex: 1, gap: 3 },
-    ref: { fontSize: 11, fontWeight: '700' },
-    title: { fontSize: 14, fontWeight: '600', lineHeight: 19 },
-    meta: { fontSize: 12 },
 });

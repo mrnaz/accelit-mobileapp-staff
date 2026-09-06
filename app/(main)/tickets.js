@@ -1,17 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, FlatList, RefreshControl, ActivityIndicator, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { View, FlatList, RefreshControl, ActivityIndicator, StyleSheet } from 'react-native';
 import Theme from '../context/ThemeContext';
 import { useStaff } from '../context/StaffContext';
 import api from '../services/api';
-import Card, { cardGap } from '../components/Card';
+import Card, { CardHeader, cardGap } from '../components/Card';
+import TicketRow from '../components/TicketRow';
 import ScreenState from '../components/ScreenState';
 import SearchField from '../components/SearchField';
 import Pills from '../components/Pills';
 import useDebounced from '../utils/useDebounced';
-import { priorityColor, priorityLabel, isMine } from '../utils/tickets';
-import { relativeTime } from '../utils/datetime';
+import { isMine } from '../utils/tickets';
 
 const PAGE_SIZE = 30;
 
@@ -19,6 +17,12 @@ const FILTERS = [
     { value: 'open', label: 'Open' },
     { value: 'done', label: 'Completed' },
 ];
+
+// The list is one card, like the Qobox student list: a header band with the
+// filter and the total, then every loaded row separated by dividers. The
+// FlatList carries that single card so pull-to-refresh and end-reached paging
+// keep working.
+const CARD = [{ key: 'tickets-card' }];
 
 // GET /api/tickets is one of the few endpoints that paginates and searches
 // server-side: {tickets: [...], total: n}, with limit/page and a broad search
@@ -95,44 +99,14 @@ export default function Tickets() {
         fetchPage(page + 1, 'more');
     }, [loading, loadingMore, rows.length, total, page, fetchPage]);
 
-    const renderItem = useCallback(({ item }) => {
-        const mine = isMine(item, staff);
-
-        return (
-            <Card onPress={() => router.push(`/ticket/${item.id}`)} style={styles.card}>
-                <View style={styles.row}>
-                    <View style={[styles.dot, { backgroundColor: priorityColor(item.priority, colors) }]} />
-
-                    <View style={styles.copy}>
-                        <View style={styles.titleRow}>
-                            <Text style={[styles.ref, { color: colors.textSecondary }]}>
-                                #{item.ticket_ref_with_check_digit || item.ticket_ref}
-                            </Text>
-                            {mine ? (
-                                <View style={[styles.chip, { backgroundColor: colors.primary + '1A' }]}>
-                                    <Text style={[styles.chipText, { color: colors.primary }]}>You</Text>
-                                </View>
-                            ) : null}
-                        </View>
-
-                        <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={2}>
-                            {item.title}
-                        </Text>
-
-                        <Text style={[styles.meta, { color: colors.textSecondary }]} numberOfLines={1}>
-                            {[
-                                item.client_name,
-                                priorityLabel(item.priority),
-                                relativeTime(item.latest_action || item.created_at),
-                            ].filter(Boolean).join(' · ')}
-                        </Text>
-                    </View>
-
-                    <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-                </View>
-            </Card>
-        );
-    }, [colors, staff]);
+    const renderCard = useCallback(() => (
+        <Card>
+            <CardHeader title={filter === 'done' ? 'Completed' : 'Open'} meta={total} />
+            {rows.map((item, index) => (
+                <TicketRow key={String(item.id)} ticket={item} index={index} mine={isMine(item, staff)} />
+            ))}
+        </Card>
+    ), [rows, total, filter, staff]);
 
     return (
         <View style={styles.screen}>
@@ -142,9 +116,9 @@ export default function Tickets() {
             </View>
 
             <FlatList
-                data={rows}
-                keyExtractor={(item) => String(item.id)}
-                renderItem={renderItem}
+                data={rows.length ? CARD : []}
+                keyExtractor={(item) => item.key}
+                renderItem={renderCard}
                 contentContainerStyle={styles.list}
                 onEndReached={loadMore}
                 onEndReachedThreshold={0.4}
@@ -160,10 +134,6 @@ export default function Tickets() {
                         <View style={styles.footer}>
                             <ActivityIndicator color={colors.primary} />
                         </View>
-                    ) : rows.length > 0 && rows.length >= total ? (
-                        <Text style={[styles.footerText, { color: colors.textSecondary }]}>
-                            {total} {filter === 'done' ? 'completed' : 'open'}
-                        </Text>
                     ) : null
                 }
                 ListEmptyComponent={
@@ -184,16 +154,5 @@ const styles = StyleSheet.create({
     screen: { flex: 1 },
     controls: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 10, gap: 10 },
     list: { paddingHorizontal: 16, paddingBottom: 24, gap: cardGap, flexGrow: 1 },
-    card: { padding: 12 },
-    row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-    dot: { width: 9, height: 9, borderRadius: 5, marginTop: 6 },
-    copy: { flex: 1, gap: 3 },
-    titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    ref: { fontSize: 11, fontWeight: '700' },
-    chip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999 },
-    chipText: { fontSize: 10, fontWeight: '700' },
-    title: { fontSize: 14, fontWeight: '600', lineHeight: 19 },
-    meta: { fontSize: 12 },
     footer: { paddingVertical: 16, alignItems: 'center' },
-    footerText: { fontSize: 12, textAlign: 'center', paddingVertical: 16 },
 });
