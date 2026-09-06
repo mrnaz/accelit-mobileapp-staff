@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -7,9 +7,13 @@ import { router } from 'expo-router';
 import api from '../services/api';
 import t from '../constants/authTheme';
 
+const RECHECK_SECONDS = 5;
+
 export default function VpnScreen() {
     const [checking, setChecking] = useState(false);
     const [stillBlocked, setStillBlocked] = useState(false);
+    const [seconds, setSeconds] = useState(RECHECK_SECONDS);
+    const timerRef = useRef(null);
 
     const recheck = useCallback(async () => {
         setChecking(true);
@@ -19,6 +23,7 @@ export default function VpnScreen() {
             const { allowed } = await api.ipCheck();
 
             if (allowed) {
+                if (timerRef.current) clearInterval(timerRef.current);
                 router.replace('/(auth)/login');
 
                 return;
@@ -34,6 +39,24 @@ export default function VpnScreen() {
         }
     }, []);
 
+    // Quietly keep asking in the background so a staff member who turns the
+    // VPN on doesn't have to remember to come back and tap the button.
+    useEffect(() => {
+        timerRef.current = setInterval(() => {
+            setSeconds((prev) => {
+                if (prev <= 1) {
+                    recheck();
+
+                    return RECHECK_SECONDS;
+                }
+
+                return prev - 1;
+            });
+        }, 1000);
+
+        return () => clearInterval(timerRef.current);
+    }, [recheck]);
+
     return (
         <SafeAreaView style={styles.screen}>
             <StatusBar style="light" />
@@ -44,7 +67,7 @@ export default function VpnScreen() {
 
             <Text style={styles.title}>Connect to the office VPN</Text>
             <Text style={styles.body}>
-                The staff app only works from the office network. Turn the VPN on, then try again.
+                The staff app only works from the office network. Turn the VPN on — we'll notice and sign you in.
             </Text>
 
             <TouchableOpacity
@@ -55,7 +78,18 @@ export default function VpnScreen() {
             >
                 {checking
                     ? <ActivityIndicator color={t.onAccent} />
-                    : <Text style={styles.buttonText}>Try again</Text>}
+                    : <Text style={styles.buttonText}>Try now</Text>}
+            </TouchableOpacity>
+
+            <View style={styles.recheckRow}>
+                <ActivityIndicator size="small" color={t.textSecondary} />
+                <Text style={styles.recheckText}>
+                    {checking ? 'Checking…' : `Checking again in ${seconds}s`}
+                </Text>
+            </View>
+
+            <TouchableOpacity onPress={() => Linking.openSettings()} accessibilityRole="button">
+                <Text style={styles.settingsLink}>Open VPN settings</Text>
             </TouchableOpacity>
 
             {stillBlocked ? (
@@ -93,5 +127,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     buttonText: { color: t.onAccent, fontSize: 15, fontWeight: '700' },
+    recheckRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+    recheckText: { color: t.textSecondary, fontSize: 12 },
+    settingsLink: { color: t.accent, fontSize: 13, fontWeight: '600', marginTop: 4 },
     hint: { color: t.textSecondary, fontSize: 12, textAlign: 'center', marginTop: 2 },
 });

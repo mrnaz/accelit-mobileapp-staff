@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, ActivityIndicator,
     StyleSheet, KeyboardAvoidingView, Platform, Switch,
@@ -9,6 +9,7 @@ import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
 import api from '../services/api';
 import { persistAuth, clearAuth } from '../utils/authFlow';
+import { sanitizeOtp, isCompleteOtp } from '../utils/otp';
 import t from '../constants/authTheme';
 
 const METHOD_LABELS = { totp: 'Authenticator app', sms: 'Text message', email: 'Email' };
@@ -23,6 +24,7 @@ export default function OtpScreen() {
     const [error, setError] = useState(null);
     const [busy, setBusy] = useState(false);
     const [switching, setSwitching] = useState(false);
+    const inputRef = useRef(null);
 
     const methods = useMemo(() => {
         try {
@@ -35,7 +37,7 @@ export default function OtpScreen() {
     }, [params.availableMethods]);
 
     const submit = useCallback(async () => {
-        if (busy || code.length !== 6) return;
+        if (busy || !isCompleteOtp(code)) return;
 
         setBusy(true);
         setError(null);
@@ -61,6 +63,12 @@ export default function OtpScreen() {
         }
     }, [busy, code, remember]);
 
+    // Auto-verify as soon as the sixth digit lands, whether typed, pasted or
+    // filled in by the OS from an SMS/keychain suggestion.
+    useEffect(() => {
+        if (isCompleteOtp(code)) submit();
+    }, [code]);
+
     const switchTo = useCallback(async (method) => {
         if (switching || method === mfaType) return;
 
@@ -85,9 +93,11 @@ export default function OtpScreen() {
         router.replace('/(auth)/login');
     }, []);
 
-    const prompt = mfaType === 'totp'
-        ? 'Enter the code from your authenticator app'
-        : `Enter the code we sent to ${maskedMFA || 'you'}`;
+    const subtitle = mfaType === 'totp'
+        ? 'From your authenticator app. It verifies as soon as all six digits are in.'
+        : mfaType === 'email'
+            ? `Sent by email to ${maskedMFA}. It verifies as soon as all six digits are in.`
+            : `Sent by text to ${maskedMFA}. It verifies as soon as all six digits are in.`;
 
     return (
         <SafeAreaView style={styles.screen}>
@@ -102,15 +112,33 @@ export default function OtpScreen() {
                         <Text style={styles.backText}>Back to sign in</Text>
                     </TouchableOpacity>
 
-                    <Text style={styles.title}>Two-factor authentication</Text>
-                    <Text style={styles.subtitle}>{prompt}</Text>
+                    <Text style={styles.title}>Enter your code</Text>
+                    <Text style={styles.subtitle}>{subtitle}</Text>
+
+                    <TouchableOpacity
+                        style={styles.boxRow}
+                        activeOpacity={1}
+                        onPress={() => inputRef.current?.focus()}
+                    >
+                        {Array.from({ length: 6 }).map((_, index) => {
+                            const active = index === Math.min(code.length, 5);
+
+                            return (
+                                <View
+                                    key={index}
+                                    style={[styles.box, active && styles.boxActive]}
+                                >
+                                    <Text style={styles.boxDigit}>{code[index] || ''}</Text>
+                                </View>
+                            );
+                        })}
+                    </TouchableOpacity>
 
                     <TextInput
+                        ref={inputRef}
                         value={code}
-                        onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 6))}
-                        style={styles.codeInput}
-                        placeholder="000000"
-                        placeholderTextColor={t.textSecondary}
+                        onChangeText={(v) => setCode(sanitizeOtp(v))}
+                        style={styles.hiddenInput}
                         keyboardType="number-pad"
                         textContentType="oneTimeCode"
                         autoComplete="one-time-code"
@@ -141,8 +169,8 @@ export default function OtpScreen() {
 
                     <TouchableOpacity
                         onPress={submit}
-                        disabled={busy || code.length !== 6}
-                        style={[styles.button, (busy || code.length !== 6) && { opacity: 0.5 }]}
+                        disabled={busy || !isCompleteOtp(code)}
+                        style={[styles.button, (busy || !isCompleteOtp(code)) && { opacity: 0.5 }]}
                         accessibilityRole="button"
                     >
                         {busy
@@ -152,7 +180,7 @@ export default function OtpScreen() {
 
                     {methods.length > 1 ? (
                         <View style={styles.switchBlock}>
-                            <Text style={styles.switchLabel}>Use a different method</Text>
+                            <Text style={styles.switchLabel}>Didn't get it? Use a different method</Text>
                             <View style={styles.pills}>
                                 {methods.map((method) => {
                                     const active = method === mfaType;
@@ -195,15 +223,17 @@ const styles = StyleSheet.create({
     backText: { color: t.textSecondary, fontSize: 13 },
     title: { color: t.textPrimary, fontSize: 21, fontWeight: '700' },
     subtitle: { color: t.textSecondary, fontSize: 13, lineHeight: 19, marginTop: 4, marginBottom: 20 },
-    codeInput: {
+    boxRow: { flexDirection: 'row', gap: 8 },
+    box: {
+        flex: 1, height: 56,
+        borderRadius: 12,
         backgroundColor: t.inputBackground,
         borderWidth: 1, borderColor: t.border,
-        borderRadius: 12,
-        paddingVertical: 16,
-        color: t.textPrimary,
-        fontSize: 30, fontWeight: '700',
-        letterSpacing: 10, textAlign: 'center',
+        alignItems: 'center', justifyContent: 'center',
     },
+    boxActive: { borderColor: t.accent },
+    boxDigit: { color: t.textPrimary, fontSize: 26, fontWeight: '700', textAlign: 'center' },
+    hiddenInput: { position: 'absolute', opacity: 0, height: 1, width: 1 },
     rememberRow: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
         gap: 12, marginTop: 18,

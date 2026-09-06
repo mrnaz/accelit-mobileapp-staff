@@ -18,6 +18,7 @@ export default function LoginScreen() {
     const [error, setError] = useState(null);
     const [busy, setBusy] = useState(false);
     const [gateChecked, setGateChecked] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     // Ask before offering a password box that cannot succeed. The web login
     // page does the same thing with this endpoint, which is reachable from any
@@ -112,20 +113,32 @@ export default function LoginScreen() {
                         />
 
                         <Text style={[styles.label, { marginTop: 14 }]}>Password</Text>
-                        <TextInput
-                            value={password}
-                            onChangeText={setPassword}
-                            style={styles.input}
-                            placeholder="••••••••"
-                            placeholderTextColor={t.textSecondary}
-                            secureTextEntry
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                            textContentType="password"
-                            editable={!busy}
-                            onSubmitEditing={submit}
-                            returnKeyType="go"
-                        />
+                        <View style={[styles.input, styles.passwordRow]}>
+                            <TextInput
+                                value={password}
+                                onChangeText={setPassword}
+                                style={styles.passwordInput}
+                                placeholder="••••••••"
+                                placeholderTextColor={t.textSecondary}
+                                secureTextEntry={!showPassword}
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                                textContentType="password"
+                                editable={!busy}
+                                onSubmitEditing={submit}
+                                returnKeyType="go"
+                            />
+                            <TouchableOpacity
+                                onPress={() => setShowPassword((v) => !v)}
+                                accessibilityRole="button"
+                            >
+                                <Ionicons
+                                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                                    size={18}
+                                    color={t.textSecondary}
+                                />
+                            </TouchableOpacity>
+                        </View>
 
                         {error ? (
                             <View style={styles.errorRow}>
@@ -149,7 +162,10 @@ export default function LoginScreen() {
                         </TouchableOpacity>
                     </View>
 
-                    <Text style={styles.footnote}>Requires the office VPN</Text>
+                    <View style={styles.statusRow}>
+                        <Ionicons name="shield-checkmark-outline" size={14} color="#28C76F" />
+                        <Text style={styles.statusText}>Office VPN connected</Text>
+                    </View>
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -180,6 +196,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14, paddingVertical: 12,
         color: t.textPrimary, fontSize: 15,
     },
+    passwordRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    passwordInput: { flex: 1, color: t.textPrimary, fontSize: 15, padding: 0 },
     errorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 },
     errorText: { color: t.error, fontSize: 13, flex: 1 },
     button: {
@@ -189,5 +207,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     buttonText: { color: t.onAccent, fontSize: 15, fontWeight: '700' },
-    footnote: { color: t.textSecondary, fontSize: 12, textAlign: 'center', marginTop: 18 },
+    statusRow: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+        gap: 6, marginTop: 18,
+    },
+    statusText: { color: t.textSecondary, fontSize: 12 },
 });
