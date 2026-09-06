@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatPhone, dialUri, mailUri } from '../app/utils/phone.js';
+import { formatPhone, dialUri, mailUri, smsUri } from '../app/utils/phone.js';
 
 describe('formatPhone', () => {
     it('formats a stored australian mobile', () => {
@@ -45,5 +45,18 @@ describe('mailUri', () => {
     it('refuses anything that is not an address', () => {
         expect(mailUri('not an email')).toBeNull();
         expect(mailUri(null)).toBeNull();
+    });
+});
+
+describe('smsUri', () => {
+    it('texts an australian mobile', () => {
+        expect(smsUri('0400 000 000')).toBe('sms:+61400000000');
+        expect(smsUri('+61500000000')).toBe('sms:+61500000000');
+    });
+
+    it('refuses landlines and junk', () => {
+        expect(smsUri('03 9000 0000')).toBeNull();
+        expect(smsUri('ext 4402')).toBeNull();
+        expect(smsUri(null)).toBeNull();
     });
 });

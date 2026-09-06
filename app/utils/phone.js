@@ -45,3 +45,19 @@ export function mailUri(address) {
 
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed) ? `mailto:${trimmed}` : null;
 }
+
+// SMS only makes sense to a mobile. Australian mobiles are 04xx and 05xx in
+// national form; everything else (landlines, extensions, junk) gets null so
+// the caller can dim its button. This checks the calling code and the raw
+// national digits directly rather than isValid()/country: libphonenumber-js's
+// AU metadata only allocates the 04 range, so isValid() is false and country
+// is undefined for a real-looking 05 number, which would make it impossible
+// to ever accept one.
+export function smsUri(raw) {
+    const parsed = parse(raw);
+
+    if (!parsed || parsed.countryCallingCode !== '61') return null;
+    if (!/^[45]\d{8}$/.test(parsed.nationalNumber)) return null;
+
+    return `sms:${parsed.number}`;
+}
