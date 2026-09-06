@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Accel Staff",
+    "slug": "accelit-staffapp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "scheme": "accelit-staffapp",
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#4b8fc8"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.accelit.staffapp",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.accelit.staffapp",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#4b8fc8"
+      }
+    },
+    "web": {
+      "favicon": "./assets/icon.png",
+      "bundler": "metro"
+    },
+    "plugins": ["expo-router", "expo-font"],
+    "extra": {
+      "router": {
+        "origin": false
+      }
+    },
+    "runtimeVersion": "1.0.0"
+  }
+}
