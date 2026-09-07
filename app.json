@@ -31,12 +31,22 @@
       "favicon": "./assets/icon.png",
       "bundler": "metro"
     },
-    "plugins": ["expo-router", "expo-font"],
+    "plugins": [
+      "expo-router",
+      "expo-font"
+    ],
     "extra": {
       "router": {
         "origin": false
+      },
+      "eas": {
+        "projectId": "7fab98a8-73c4-4637-afcd-d2c6a51fce03"
       }
     },
-    "runtimeVersion": "1.0.0"
+    "runtimeVersion": "1.0.0",
+    "owner": "anllqdev",
+    "updates": {
+      "url": "https://u.expo.dev/7fab98a8-73c4-4637-afcd-d2c6a51fce03"
+    }
   }
 }
