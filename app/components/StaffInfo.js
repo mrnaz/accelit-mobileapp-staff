@@ -7,7 +7,7 @@ import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import Theme from '../context/ThemeContext';
 import { useStaff } from '../context/StaffContext';
-import { visibleMenu } from '../utils/menu';
+import { jumpMenu } from '../utils/menu';
 import ThemeToggle from './ThemeToggle';
 import LogoutButton from './LogoutButton';
 
@@ -24,7 +24,7 @@ export default function StaffInfo() {
     const [jumpOpen, setJumpOpen] = useState(false);
     const [accountOpen, setAccountOpen] = useState(false);
 
-    const menu = useMemo(() => visibleMenu(staff), [staff]);
+    const menu = useMemo(() => jumpMenu(staff), [staff]);
 
     const go = useCallback((href) => {
         setJumpOpen(false);
