@@ -5,7 +5,6 @@ import api from '../../services/api';
 import ScreenState from '../ScreenState';
 import PersonRow from '../PersonRow';
 import ContactSheet from '../ContactSheet';
-import Toast, { useToast } from '../Toast';
 
 // A client contact as the shared person shape, so the row and the sheet read
 // one client's contacts exactly the way the address book reads everyone's.
@@ -45,7 +44,6 @@ export default function ContactsTab({ clientId, initialRows, onRows, onCount }) 
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
     const [sheetPerson, setSheetPerson] = useState(null);
-    const [toast, showToast] = useToast();
 
     const skipFirstLoad = useRef(!!seeded);
 
@@ -123,10 +121,7 @@ export default function ContactsTab({ clientId, initialRows, onRows, onCount }) 
                 person={sheetPerson}
                 visible={!!sheetPerson}
                 onClose={() => setSheetPerson(null)}
-                onCopied={showToast}
             />
-
-            <Toast message={toast} />
         </View>
     );
 }

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
     View, Text, Modal, TouchableOpacity, TouchableWithoutFeedback, Linking, StyleSheet,
 } from 'react-native';
@@ -8,6 +8,7 @@ import * as Clipboard from 'expo-clipboard';
 import Theme from '../context/ThemeContext';
 import Avatar from './Avatar';
 import LabelValue from './LabelValue';
+import Toast, { useToast } from './Toast';
 import { formatPhone, dialUri, mailUri, smsUri } from '../utils/phone';
 
 // One tile of the action grid. Dimmed and inert when there is nothing behind
@@ -32,19 +33,31 @@ function ActionTile({ icon, label, disabled, onPress }) {
 }
 
 // Everything you can do with one person, one tap from the row that named them.
-// `onCopied` lets the screen toast; `onUsed` fires on a call, text or email so
-// the screen can bump its recents.
-export default function ContactSheet({ person, visible, onClose, onCopied, onUsed }) {
+// `onUsed` fires on a call, text or email so the screen can bump its recents.
+//
+// The copy toast lives in here rather than on the screen: a Modal is its own
+// native window above every parent view, so a pill rendered beside the sheet
+// would be painted underneath it.
+export default function ContactSheet({ person, visible, onClose, onUsed }) {
     const { useTheme } = Theme;
     const { theme } = useTheme();
     const { colors } = theme;
+    const [toast, showToast] = useToast();
 
-    if (!person) return null;
+    // The sheet fades out after `person` is cleared, so the last one shown has
+    // to outlive it — otherwise the closing frame is an empty sheet.
+    const lastPerson = useRef(person);
 
-    const shownPhone = formatPhone(person.phone);
-    const tel = dialUri(person.phone);
-    const sms = smsUri(person.phone);
-    const mail = mailUri(person.email);
+    if (person) lastPerson.current = person;
+
+    const subject = person || lastPerson.current;
+
+    if (!subject) return null;
+
+    const shownPhone = formatPhone(subject.phone);
+    const tel = dialUri(subject.phone);
+    const sms = smsUri(subject.phone);
+    const mail = mailUri(subject.email);
 
     const use = (uri) => {
         Linking.openURL(uri);
@@ -53,38 +66,42 @@ export default function ContactSheet({ person, visible, onClose, onCopied, onUse
 
     const copy = async () => {
         await Clipboard.setStringAsync(shownPhone);
-        onCopied?.('Number copied');
+        showToast('Number copied');
     };
 
     const openClient = () => {
         onClose();
-        router.push(`/client/${person.clientId}`);
+        router.push(`/client/${subject.clientId}`);
     };
 
     return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-            <TouchableWithoutFeedback onPress={onClose}>
+            <TouchableWithoutFeedback
+                onPress={onClose}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+            >
                 <View style={[styles.backdrop, { backgroundColor: colors.overlay }]}>
                     <TouchableWithoutFeedback>
                         <View style={[styles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                             <View style={[styles.grabber, { backgroundColor: colors.border }]} />
 
                             <View style={styles.header}>
-                                <Avatar uri={null} name={person.name} id={person.avatarId} size={56} />
+                                <Avatar uri={null} name={subject.name} id={subject.avatarId} size={56} />
 
                                 <View style={styles.identity}>
                                     <View style={styles.nameRow}>
                                         <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={2}>
-                                            {person.name}
+                                            {subject.name}
                                         </Text>
-                                        {person.isClient ? (
+                                        {subject.isClient ? (
                                             <View style={[styles.badge, { backgroundColor: colors.primary + '1A' }]}>
                                                 <Text style={[styles.badgeText, { color: colors.primary }]}>Client</Text>
                                             </View>
                                         ) : null}
                                     </View>
                                     <Text style={[styles.subtitle, { color: colors.textSecondary }]} numberOfLines={1}>
-                                        {person.subtitle}
+                                        {subject.subtitle}
                                     </Text>
                                 </View>
                             </View>
@@ -98,23 +115,25 @@ export default function ContactSheet({ person, visible, onClose, onCopied, onUse
 
                             <View>
                                 <LabelValue label="Phone" value={shownPhone} />
-                                <LabelValue label="Email" value={person.email} last />
+                                <LabelValue label="Email" value={subject.email} last />
                             </View>
 
-                            {person.clientId ? (
+                            {subject.clientId ? (
                                 <TouchableOpacity
                                     onPress={openClient}
                                     style={[styles.clientRow, { borderTopColor: colors.border }]}
                                 >
                                     <FontAwesome name="building-o" size={16} color={colors.primary} />
                                     <Text style={[styles.clientText, { color: colors.textPrimary }]} numberOfLines={1}>
-                                        Open {person.clientName || person.name}
+                                        Open {subject.clientName || subject.name}
                                     </Text>
                                     <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
                                 </TouchableOpacity>
                             ) : null}
                         </View>
                     </TouchableWithoutFeedback>
+
+                    <Toast message={toast} />
                 </View>
             </TouchableWithoutFeedback>
         </Modal>

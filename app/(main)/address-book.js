@@ -10,7 +10,6 @@ import SearchField from '../components/SearchField';
 import SectionLabel from '../components/SectionLabel';
 import PersonRow from '../components/PersonRow';
 import ContactSheet from '../components/ContactSheet';
-import Toast, { useToast } from '../components/Toast';
 import useDebounced from '../utils/useDebounced';
 import { toPerson, sectionize, recentKey, matches } from '../utils/addressBook';
 import { loadRecents, rememberRecent } from '../utils/recents';
@@ -34,7 +33,6 @@ export default function AddressBook() {
     const [search, setSearch] = useState('');
     const [recents, setRecents] = useState([]);
     const [sheetPerson, setSheetPerson] = useState(null);
-    const [toast, showToast] = useToast();
 
     const listRef = useRef(null);
     // The keys a bump starts from, so a row's onPress never has to depend on
@@ -237,11 +235,8 @@ export default function AddressBook() {
                 person={sheetPerson}
                 visible={!!sheetPerson}
                 onClose={() => setSheetPerson(null)}
-                onCopied={showToast}
                 onUsed={() => bump(sheetPerson.key)}
             />
-
-            <Toast message={toast} />
         </View>
     );
 }

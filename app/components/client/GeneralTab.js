@@ -5,7 +5,6 @@ import Card, { cardGap, CardHeader, cardBodyPadding } from '../Card';
 import LabelValue from '../LabelValue';
 import PersonRow from '../PersonRow';
 import ContactSheet from '../ContactSheet';
-import Toast, { useToast } from '../Toast';
 import { contactPerson } from './ContactsTab';
 import { addressLine } from '../../utils/address';
 import { mapsUri } from '../../utils/maps';
@@ -28,7 +27,6 @@ export default function GeneralTab({ client, contacts, onShowContacts }) {
     const { colors } = theme;
 
     const [sheetPerson, setSheetPerson] = useState(null);
-    const [toast, showToast] = useToast();
 
     const site = client?.primary_site;
     const address = addressLine(site?.address);
@@ -104,10 +102,7 @@ export default function GeneralTab({ client, contacts, onShowContacts }) {
                 person={sheetPerson}
                 visible={!!sheetPerson}
                 onClose={() => setSheetPerson(null)}
-                onCopied={showToast}
             />
-
-            <Toast message={toast} />
         </View>
     );
 }
