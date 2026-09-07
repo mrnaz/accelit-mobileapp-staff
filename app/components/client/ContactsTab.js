@@ -5,25 +5,7 @@ import api from '../../services/api';
 import ScreenState from '../ScreenState';
 import PersonRow from '../PersonRow';
 import ContactSheet from '../ContactSheet';
-
-// A client contact as the shared person shape, so the row and the sheet read
-// one client's contacts exactly the way the address book reads everyone's.
-// `clientId` stays null: this list already lives on the client's own page, so
-// the sheet has nowhere useful to send you.
-export function contactPerson(contact, key) {
-    return {
-        key,
-        name: contact?.name || `${contact?.fname || ''} ${contact?.sname || ''}`.trim(),
-        subtitle: contact?.position || null,
-        phone: contact?.phone || null,
-        email: contact?.email || null,
-        isClient: false,
-        clientId: null,
-        clientName: null,
-        avatarId: contact?.id ?? null,
-        firstName: contact?.fname || '',
-    };
-}
+import { contactPerson } from '../../utils/contacts';
 
 // Bare array, no pagination. Contacts for one client are a short list.
 //

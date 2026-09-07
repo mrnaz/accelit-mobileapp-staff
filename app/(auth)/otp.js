@@ -115,10 +115,13 @@ export default function OtpScreen() {
                     <Text style={styles.title}>Enter your code</Text>
                     <Text style={styles.subtitle}>{subtitle}</Text>
 
+                    {/* The boxes are a picture of the hidden input's value, so
+                        a screen reader is pointed at the input instead. */}
                     <TouchableOpacity
                         style={styles.boxRow}
                         activeOpacity={1}
                         onPress={() => inputRef.current?.focus()}
+                        importantForAccessibility="no-hide-descendants"
                     >
                         {Array.from({ length: 6 }).map((_, index) => {
                             const active = index === Math.min(code.length, 5);
@@ -139,6 +142,7 @@ export default function OtpScreen() {
                         value={code}
                         onChangeText={(v) => setCode(sanitizeOtp(v))}
                         style={styles.hiddenInput}
+                        accessibilityLabel="Six digit verification code"
                         keyboardType="number-pad"
                         textContentType="oneTimeCode"
                         autoComplete="one-time-code"

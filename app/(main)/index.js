@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { View, Text, ScrollView, RefreshControl, StyleSheet } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import Theme from '../context/ThemeContext';
@@ -32,6 +32,7 @@ export default function Home() {
 
     const [stats, setStats] = useState({});
     const [ticketRows, setTicketRows] = useState([]);
+    const [refreshing, setRefreshing] = useState(false);
 
     // Derived rather than stored: the moment `staff` resolves (cache, then
     // /api/me), this recomputes from whatever page of tickets is already in
@@ -42,24 +43,27 @@ export default function Home() {
         [ticketRows, staff],
     );
 
-    useEffect(() => {
-        let cancelled = false;
-
-        menuKeys.split(',').forEach((key) => {
+    // One place for the four fetches, so pulling down re-runs exactly what the
+    // mount does. `isCancelled` is asked at the moment a reply lands, so the
+    // effect can drop one that arrives after the screen has gone.
+    const loadStats = useCallback((isCancelled = () => false) => {
+        const requests = menuKeys.split(',').map((key) => {
             if (key === 'clients') {
-                api.clients()
+                return api.clients()
                     .then((rows) => {
-                        if (cancelled) return;
+                        if (isCancelled()) return;
 
                         const activeClients = (rows || []).filter((c) => c.status === 'active').length;
 
                         setStats((prev) => ({ ...prev, activeClients }));
                     })
                     .catch(() => {});
-            } else if (key === 'tickets') {
-                api.tickets({ page: 1, limit: 30 })
+            }
+
+            if (key === 'tickets') {
+                return api.tickets({ page: 1, limit: 30 })
                     .then((response) => {
-                        if (cancelled) return;
+                        if (isCancelled()) return;
 
                         const rows = Array.isArray(response?.tickets) ? response.tickets : [];
 
@@ -67,30 +71,54 @@ export default function Home() {
                         setTicketRows(rows);
                     })
                     .catch(() => {});
-            } else if (key === 'onboarding') {
-                api.assetOnboarding()
+            }
+
+            if (key === 'onboarding') {
+                return api.assetOnboarding()
                     .then((response) => {
-                        if (cancelled) return;
+                        if (isCancelled()) return;
 
                         setStats((prev) => ({ ...prev, machinesThisMonth: onboardedThisMonth(response?.assets) }));
                     })
                     .catch(() => {});
-            } else if (key === 'address-book') {
-                api.addressBook()
+            }
+
+            if (key === 'address-book') {
+                return api.addressBook()
                     .then((rows) => {
-                        if (cancelled) return;
+                        if (isCancelled()) return;
 
                         setStats((prev) => ({ ...prev, contacts: (rows || []).length }));
                     })
                     .catch(() => {});
             }
+
+            return null;
         });
 
-        return () => { cancelled = true; };
+        return Promise.all(requests);
     }, [menuKeys]);
 
+    useEffect(() => {
+        let cancelled = false;
+
+        loadStats(() => cancelled);
+
+        return () => { cancelled = true; };
+    }, [loadStats]);
+
+    const refresh = useCallback(() => {
+        setRefreshing(true);
+        loadStats().then(() => setRefreshing(false));
+    }, [loadStats]);
+
     return (
-        <ScrollView contentContainerStyle={styles.scroll}>
+        <ScrollView
+            contentContainerStyle={styles.scroll}
+            refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} />
+            }
+        >
             <View style={styles.grid}>
                 {menu.map((item) => {
                     const stat = statLine(item.key, { ...stats, yourTickets: yourTickets.length });

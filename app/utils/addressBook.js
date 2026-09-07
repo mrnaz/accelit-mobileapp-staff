@@ -14,7 +14,12 @@ export function toPerson(row) {
         clientId: row?.client_id ?? null,
         clientName: row?.client_name || null,
         avatarId: row?.contact_id ?? row?.client_id ?? null,
-        firstName: isClient ? (row?.displayname || '') : (row?.fname || row?.displayname || ''),
+        // The recents strip shows a first name only for someone you would
+        // call by it. A client is a company and a general contact is a desk
+        // ("Vendor Support"), so both keep their full name.
+        firstName: row?.type === 'client_contact'
+            ? (row?.fname || row?.displayname || '')
+            : (row?.displayname || ''),
     };
 }
 

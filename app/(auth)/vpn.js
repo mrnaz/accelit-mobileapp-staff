@@ -13,6 +13,10 @@ export default function VpnScreen() {
     const [checking, setChecking] = useState(false);
     const [stillBlocked, setStillBlocked] = useState(false);
     const [seconds, setSeconds] = useState(RECHECK_SECONDS);
+    // The tick reads the countdown from here rather than from a state
+    // updater: an updater has to be pure, and React may run it more than once
+    // for the same tick — which would fire a second check.
+    const secondsRef = useRef(RECHECK_SECONDS);
     const timerRef = useRef(null);
     const inFlight = useRef(false);
     const mounted = useRef(true);
@@ -57,15 +61,12 @@ export default function VpnScreen() {
         mounted.current = true;
 
         timerRef.current = setInterval(() => {
-            setSeconds((prev) => {
-                if (prev <= 1) {
-                    recheck();
+            const next = secondsRef.current - 1;
 
-                    return RECHECK_SECONDS;
-                }
+            secondsRef.current = next > 0 ? next : RECHECK_SECONDS;
+            setSeconds(secondsRef.current);
 
-                return prev - 1;
-            });
+            if (next <= 0) recheck();
         }, 1000);
 
         return () => {

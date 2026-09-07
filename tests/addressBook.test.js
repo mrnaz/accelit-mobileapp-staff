@@ -31,8 +31,9 @@ describe('toPerson', () => {
         expect(toPerson(general).clientId).toBeNull();
     });
 
-    it('uses the first name for contacts and the full name for clients', () => {
+    it('uses the first name for client contacts and the full name for the rest', () => {
         expect(toPerson(contact).firstName).toBe('Pat');
+        expect(toPerson(general).firstName).toBe('Vendor Support');
         expect(toPerson(client).firstName).toBe('Accolade Screens');
     });
 });

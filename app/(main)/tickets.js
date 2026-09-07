@@ -103,6 +103,11 @@ export default function Tickets() {
 
     const renderCard = useCallback(() => {
         const { yours, others, othersTotal } = partitionTickets(rows, staff, total);
+        // A count with no rows behind it means the rest are still paging in;
+        // the card waits rather than reading as an empty section. A genuine
+        // zero still shows, so "nothing else open" is stated rather than
+        // silently missing.
+        const showOthers = others.length > 0 || othersTotal === 0;
 
         return (
             <View style={{ gap: cardGap }}>
@@ -115,12 +120,14 @@ export default function Tickets() {
                     </Card>
                 ) : null}
 
-                <Card>
-                    <CardHeader title="Everyone else" meta={othersTotal} />
-                    {others.map((item, index) => (
-                        <TicketRow key={String(item.id)} ticket={item} index={index} />
-                    ))}
-                </Card>
+                {showOthers ? (
+                    <Card>
+                        <CardHeader title="Everyone else" meta={othersTotal} />
+                        {others.map((item, index) => (
+                            <TicketRow key={String(item.id)} ticket={item} index={index} />
+                        ))}
+                    </Card>
+                ) : null}
             </View>
         );
     }, [rows, total, staff]);

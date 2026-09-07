@@ -19,7 +19,7 @@ import { loadRecents, rememberRecent } from '../utils/recents';
 // server-side search, so the app fetches once and filters locally.
 //
 // The list is a phone book: letter sections with a rail down the side while
-// browsing, one flat ranked list while searching. Tapping anyone opens the
+// browsing, one flat filtered list while searching. Tapping anyone opens the
 // contact sheet, and whoever you open comes back at the top as a recent.
 export default function AddressBook() {
     const { useTheme } = Theme;
@@ -96,9 +96,14 @@ export default function AddressBook() {
         const person = toPerson(item);
 
         return (
-            <PersonRow person={person} onPress={() => openPerson(person)} showDivider={index > 0} />
+            <PersonRow
+                person={person}
+                onPress={() => openPerson(person)}
+                onCalled={() => bump(person.key)}
+                showDivider={index > 0}
+            />
         );
-    }, [openPerson]);
+    }, [openPerson, bump]);
 
     const renderSectionHeader = useCallback(({ section }) => (
         <View style={[styles.sectionHeader, { backgroundColor: colors.background }]}>

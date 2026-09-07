@@ -5,7 +5,7 @@ import Card, { cardGap, CardHeader, cardBodyPadding } from '../Card';
 import LabelValue from '../LabelValue';
 import PersonRow from '../PersonRow';
 import ContactSheet from '../ContactSheet';
-import { contactPerson } from './ContactsTab';
+import { contactPerson } from '../../utils/contacts';
 import { addressLine } from '../../utils/address';
 import { mapsUri } from '../../utils/maps';
 import { dialUri, formatPhone } from '../../utils/phone';
