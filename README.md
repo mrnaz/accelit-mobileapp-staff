@@ -64,6 +64,14 @@ npm test        # unit tests for the pure helpers, plus the root layout (jsdom)
 npx expo-doctor # config and dependency check
 ```
 
+## Screens
+
+Every screen follows the UX handoff in `docs/superpowers/plans/2026-09-06-ux-redesign.md`
+(the plan quotes the handoff's values verbatim). Two deliberate departures from
+that handoff, both on the product owner's instruction: there is no copy button
+for a password anywhere in the app, and ticket rows keep their age in days
+after the reference, `#51870  (24d)`.
+
 ## What it does not do
 
 Nothing is created, edited or deleted anywhere in the app. It holds a
