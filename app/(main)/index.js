@@ -23,14 +23,30 @@ export default function Home() {
 
     const menu = useMemo(() => visibleMenu(staff), [staff]);
 
+    // `visibleMenu` allocates a new array on every staff change, even when
+    // the set of visible keys hasn't actually changed. Keying the fetch
+    // effect on this joined string instead means the four requests fire once
+    // per mount, plus once more only if a permission truly appears or
+    // disappears — not on every profile refresh.
+    const menuKeys = menu.map((item) => item.key).join(',');
+
     const [stats, setStats] = useState({});
-    const [yourTickets, setYourTickets] = useState([]);
+    const [ticketRows, setTicketRows] = useState([]);
+
+    // Derived rather than stored: the moment `staff` resolves (cache, then
+    // /api/me), this recomputes from whatever page of tickets is already in
+    // hand — no refetch, and no window where the card or badge is wrongly
+    // empty because assignment couldn't be checked yet.
+    const yourTickets = useMemo(
+        () => ticketRows.filter((t) => isMine(t, staff)),
+        [ticketRows, staff],
+    );
 
     useEffect(() => {
         let cancelled = false;
 
-        menu.forEach((item) => {
-            if (item.key === 'clients') {
+        menuKeys.split(',').forEach((key) => {
+            if (key === 'clients') {
                 api.clients()
                     .then((rows) => {
                         if (cancelled) return;
@@ -40,23 +56,18 @@ export default function Home() {
                         setStats((prev) => ({ ...prev, activeClients }));
                     })
                     .catch(() => {});
-            } else if (item.key === 'tickets') {
+            } else if (key === 'tickets') {
                 api.tickets({ page: 1, limit: 30 })
                     .then((response) => {
                         if (cancelled) return;
 
                         const rows = Array.isArray(response?.tickets) ? response.tickets : [];
-                        const mine = rows.filter((t) => isMine(t, staff));
 
-                        setStats((prev) => ({
-                            ...prev,
-                            openTickets: Number(response?.total) || 0,
-                            yourTickets: mine.length,
-                        }));
-                        setYourTickets(mine);
+                        setStats((prev) => ({ ...prev, openTickets: Number(response?.total) || 0 }));
+                        setTicketRows(rows);
                     })
                     .catch(() => {});
-            } else if (item.key === 'onboarding') {
+            } else if (key === 'onboarding') {
                 api.assetOnboarding()
                     .then((response) => {
                         if (cancelled) return;
@@ -64,7 +75,7 @@ export default function Home() {
                         setStats((prev) => ({ ...prev, machinesThisMonth: onboardedThisMonth(response?.assets) }));
                     })
                     .catch(() => {});
-            } else if (item.key === 'address-book') {
+            } else if (key === 'address-book') {
                 api.addressBook()
                     .then((rows) => {
                         if (cancelled) return;
@@ -76,13 +87,13 @@ export default function Home() {
         });
 
         return () => { cancelled = true; };
-    }, [menu]);
+    }, [menuKeys]);
 
     return (
         <ScrollView contentContainerStyle={styles.scroll}>
             <View style={styles.grid}>
                 {menu.map((item) => {
-                    const stat = statLine(item.key, stats);
+                    const stat = statLine(item.key, { ...stats, yourTickets: yourTickets.length });
                     const badge = item.key === 'tickets' ? yourTickets.length : 0;
 
                     return (
