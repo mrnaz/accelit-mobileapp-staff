@@ -65,14 +65,6 @@ export default function ClientPage() {
             }
 
             setClient(await api.client(id));
-
-            // The General tab names the primary contact and the Contacts tab is
-            // seeded from the same list, so it is fetched once, here. Not
-            // awaited — the screen should not wait on it — and a failure is
-            // ignored: the Contacts tab still fetches for itself.
-            api.clientContacts(id)
-                .then((data) => setContacts(Array.isArray(data) ? data : []))
-                .catch(() => {});
         } catch (err) {
             if (err.status === 403) setDenied(true);
             else if (err.status !== 401) setError(err.message);
@@ -92,7 +84,29 @@ export default function ClientPage() {
         if (active && tabs.length && !tabs.some((t) => t.id === active)) setActive(tabs[0].id);
     }, [tabs, active]);
 
+    // 'limited' access has no Contacts tab, and the web hides a client's
+    // contacts entirely at that level, so the page must not ask for them —
+    // which also keeps the General tab from offering a switch to a tab that
+    // does not exist. Read off the same list the tab bar draws.
+    const showsContacts = useMemo(() => tabs.some((tab) => tab.id === 'contacts'), [tabs]);
+
+    // The General tab names the primary contact and the Contacts tab is seeded
+    // from the same list, so it is fetched once, here, rather than by both.
+    // Errors are ignored: the Contacts tab still fetches for itself.
+    useEffect(() => {
+        if (!client || !showsContacts) return;
+
+        api.clientContacts(id)
+            .then((data) => setContacts(Array.isArray(data) ? data : []))
+            .catch(() => {});
+    }, [client, showsContacts, id]);
+
     const showContacts = useCallback(() => setActive('contacts'), []);
+
+    // The Contacts tab hands its fetched list back, so the snapshot a remount
+    // re-seeds from is the newest one — otherwise a pull-to-refresh there would
+    // be undone by the next tab switch.
+    const onRows = useCallback((rows) => setContacts(rows), []);
 
     // Only the active tab is mounted, so one callback bound to it is enough.
     // Ignoring an unchanged count keeps a tab that re-reports from looping.
@@ -102,20 +116,25 @@ export default function ClientPage() {
 
     const Body = active ? TAB_BODIES[active] : null;
 
-    // What the mounted tab needs beyond the client itself.
+    // What the mounted tab needs beyond the client itself. The General tab is
+    // given the contacts and the switch only where there is a Contacts tab to
+    // switch to; without them it drops its primary contact card.
     const bodyProps = {
-        general: { contacts, onShowContacts: showContacts },
-        contacts: { initialRows: contacts, onCount },
+        general: showsContacts ? { contacts, onShowContacts: showContacts } : {},
+        contacts: { initialRows: contacts, onRows, onCount },
         tickets: { onCount },
         assets: { onCount },
     }[active] || {};
 
     const site = client?.primary_site;
+    const open = Number(client?.open_tickets) || 0;
 
     const meta = [
         site?.sitename,
         site?.address?.suburbcity,
-        client?.open_tickets > 0 ? `${client.open_tickets} open tickets` : null,
+        // Same wording as the clients list (utils/clients.js clientMeta), so
+        // the row you tapped and the page you land on agree.
+        open > 0 ? `${open} open ${open === 1 ? 'ticket' : 'tickets'}` : null,
     ].filter(Boolean).join(' · ');
 
     // A button with nothing behind it is dropped rather than dimmed: there is

@@ -30,8 +30,10 @@ export function contactPerson(contact, key) {
 //
 // The client page fetches that list for the General tab, so `initialRows`
 // seeds this one instead of asking for the same contacts again; pull to
-// refresh still goes to the API.
-export default function ContactsTab({ clientId, initialRows, onCount }) {
+// refresh still goes to the API, and `onRows` hands what comes back to the
+// page so the seed does not go stale. This tab unmounts on every tab switch,
+// so without that a refresh here would be forgotten as soon as you left.
+export default function ContactsTab({ clientId, initialRows, onRows, onCount }) {
     const { useTheme } = Theme;
     const { theme } = useTheme();
     const { colors } = theme;
@@ -53,15 +55,17 @@ export default function ContactsTab({ clientId, initialRows, onCount }) {
 
         try {
             const data = await api.clientContacts(clientId);
+            const list = Array.isArray(data) ? data : [];
 
-            setRows(Array.isArray(data) ? data : []);
+            setRows(list);
+            onRows?.(list);
         } catch (err) {
             if (err.status !== 401) setError(err.message);
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [clientId]);
+    }, [clientId, onRows]);
 
     useEffect(() => {
         if (skipFirstLoad.current) {

@@ -18,7 +18,10 @@ import { dialUri, formatPhone } from '../../utils/phone';
 // non-sysadmin anyway.
 //
 // `contacts` is the list the client page already fetched, so the primary
-// contact shows up here without the Contacts tab ever mounting.
+// contact shows up here without the Contacts tab ever mounting. It arrives
+// only at an access level allowed to see contacts at all — no array means no
+// primary contact card — and the switch to the full list appears only when the
+// page offers somewhere to switch to.
 export default function GeneralTab({ client, contacts, onShowContacts }) {
     const { useTheme } = Theme;
     const { theme } = useTheme();
@@ -30,7 +33,9 @@ export default function GeneralTab({ client, contacts, onShowContacts }) {
     const site = client?.primary_site;
     const address = addressLine(site?.address);
 
-    const primary = (contacts || []).find((contact) => contact.default_contact);
+    const primary = Array.isArray(contacts)
+        ? contacts.find((contact) => contact.default_contact)
+        : null;
     const primaryPerson = primary ? contactPerson(primary, 'primary') : null;
 
     return (
@@ -63,11 +68,17 @@ export default function GeneralTab({ client, contacts, onShowContacts }) {
                             >
                                 Primary contact
                             </Text>
-                            <TouchableOpacity onPress={onShowContacts}>
-                                <Text style={[styles.switch, { color: colors.primary }]}>
-                                    All contacts
-                                </Text>
-                            </TouchableOpacity>
+                            {onShowContacts ? (
+                                <TouchableOpacity
+                                    onPress={onShowContacts}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="All contacts"
+                                >
+                                    <Text style={[styles.switch, { color: colors.primary }]}>
+                                        All contacts
+                                    </Text>
+                                </TouchableOpacity>
+                            ) : null}
                         </CardHeader>
                         <View style={styles.people}>
                             <PersonRow
