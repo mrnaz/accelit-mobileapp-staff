@@ -96,8 +96,8 @@ export default function OtpScreen() {
     const subtitle = mfaType === 'totp'
         ? 'From your authenticator app. It verifies as soon as all six digits are in.'
         : mfaType === 'email'
-            ? `Sent by email to ${maskedMFA}. It verifies as soon as all six digits are in.`
-            : `Sent by text to ${maskedMFA}. It verifies as soon as all six digits are in.`;
+            ? `Sent by email to ${maskedMFA || 'you'}. It verifies as soon as all six digits are in.`
+            : `Sent by text to ${maskedMFA || 'you'}. It verifies as soon as all six digits are in.`;
 
     return (
         <SafeAreaView style={styles.screen}>
