@@ -17,7 +17,7 @@ const FILTERS = [
 // the client whose page this is.
 const CARD = [{ key: 'client-tickets-card' }];
 
-export default function TicketsTab({ clientId }) {
+export default function TicketsTab({ clientId, onCount }) {
     const { useTheme } = Theme;
     const { theme } = useTheme();
     const { colors } = theme;
@@ -45,6 +45,12 @@ export default function TicketsTab({ clientId }) {
     }, [clientId, filter]);
 
     useEffect(() => { load(); }, [load]);
+
+    // The tab bar shows the filter you are looking at, so switching to
+    // Completed re-reports. An errored list reports nothing rather than zero.
+    useEffect(() => {
+        if (!loading && !error) onCount?.(rows.length);
+    }, [loading, error, rows, onCount]);
 
     const renderCard = useCallback(() => (
         <Card>

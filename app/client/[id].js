@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Linking, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -7,9 +7,13 @@ import { useLocalSearchParams } from 'expo-router';
 import Theme from '../context/ThemeContext';
 import { useStaff } from '../context/StaffContext';
 import api from '../services/api';
+import Avatar from '../components/Avatar';
 import DetailHeader from '../components/DetailHeader';
 import ScreenState from '../components/ScreenState';
 import { visibleTabs } from '../utils/clientTabs';
+import { addressLine } from '../utils/address';
+import { mapsUri } from '../utils/maps';
+import { dialUri, mailUri } from '../utils/phone';
 import GeneralTab from '../components/client/GeneralTab';
 import ContactsTab from '../components/client/ContactsTab';
 import TicketsTab from '../components/client/TicketsTab';
@@ -34,11 +38,13 @@ export default function ClientPage() {
     const { staff } = useStaff();
 
     const [client, setClient] = useState(null);
+    const [contacts, setContacts] = useState(null);
     const [accessLevel, setAccessLevel] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [denied, setDenied] = useState(false);
     const [active, setActive] = useState(null);
+    const [counts, setCounts] = useState({});
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -59,6 +65,14 @@ export default function ClientPage() {
             }
 
             setClient(await api.client(id));
+
+            // The General tab names the primary contact and the Contacts tab is
+            // seeded from the same list, so it is fetched once, here. Not
+            // awaited — the screen should not wait on it — and a failure is
+            // ignored: the Contacts tab still fetches for itself.
+            api.clientContacts(id)
+                .then((data) => setContacts(Array.isArray(data) ? data : []))
+                .catch(() => {});
         } catch (err) {
             if (err.status === 403) setDenied(true);
             else if (err.status !== 401) setError(err.message);
@@ -78,7 +92,44 @@ export default function ClientPage() {
         if (active && tabs.length && !tabs.some((t) => t.id === active)) setActive(tabs[0].id);
     }, [tabs, active]);
 
+    const showContacts = useCallback(() => setActive('contacts'), []);
+
+    // Only the active tab is mounted, so one callback bound to it is enough.
+    // Ignoring an unchanged count keeps a tab that re-reports from looping.
+    const onCount = useCallback((n) => {
+        setCounts((prev) => (prev[active] === n ? prev : { ...prev, [active]: n }));
+    }, [active]);
+
     const Body = active ? TAB_BODIES[active] : null;
+
+    // What the mounted tab needs beyond the client itself.
+    const bodyProps = {
+        general: { contacts, onShowContacts: showContacts },
+        contacts: { initialRows: contacts, onCount },
+        tickets: { onCount },
+        assets: { onCount },
+    }[active] || {};
+
+    const site = client?.primary_site;
+
+    const meta = [
+        site?.sitename,
+        site?.address?.suburbcity,
+        client?.open_tickets > 0 ? `${client.open_tickets} open tickets` : null,
+    ].filter(Boolean).join(' · ');
+
+    // A button with nothing behind it is dropped rather than dimmed: there is
+    // no row height to keep here, and three is already the maximum.
+    const actions = [
+        { key: 'call', icon: 'call-outline', label: 'Call', uri: dialUri(client?.phone) },
+        { key: 'email', icon: 'mail-outline', label: 'Email', uri: mailUri(client?.email) },
+        {
+            key: 'directions',
+            icon: 'navigate-outline',
+            label: 'Directions',
+            uri: mapsUri(addressLine(site?.address)),
+        },
+    ].filter((action) => action.uri);
 
     return (
         <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
@@ -102,23 +153,39 @@ export default function ClientPage() {
             ) : (
                 <>
                     <View style={[styles.identity, { borderBottomColor: colors.border }]}>
-                        {client?.logo ? (
-                            <Image source={{ uri: client.logo }} style={styles.logo} resizeMode="contain" />
-                        ) : (
-                            <View style={[styles.logo, styles.logoFallback, { backgroundColor: colors.primary + '1A' }]}>
-                                <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 16 }}>
-                                    {(client?.name || '?')[0].toUpperCase()}
+                        <View style={styles.head}>
+                            <Avatar uri={client?.logo} name={client?.name} id={client?.id} size={46} />
+
+                            <View style={styles.identityCopy}>
+                                <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={2}>
+                                    {client?.name}
                                 </Text>
+                                {meta ? (
+                                    <Text style={[styles.meta, { color: colors.textSecondary }]} numberOfLines={1}>
+                                        {meta}
+                                    </Text>
+                                ) : null}
                             </View>
-                        )}
-                        <View style={styles.identityCopy}>
-                            <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={2}>
-                                {client?.name}
-                            </Text>
-                            <Text style={[styles.meta, { color: colors.textSecondary }]} numberOfLines={1}>
-                                {client?.primary_site?.sitename || client?.timezone || ''}
-                            </Text>
                         </View>
+
+                        {actions.length ? (
+                            <View style={styles.actions}>
+                                {actions.map((action) => (
+                                    <TouchableOpacity
+                                        key={action.key}
+                                        onPress={() => Linking.openURL(action.uri)}
+                                        style={[styles.action, { borderColor: colors.border }]}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={action.label}
+                                    >
+                                        <Ionicons name={action.icon} size={15} color={colors.primary} />
+                                        <Text style={[styles.actionLabel, { color: colors.textPrimary }]}>
+                                            {action.label}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        ) : null}
                     </View>
 
                     <View style={[styles.tabBar, { borderBottomColor: colors.border }]}>
@@ -129,6 +196,8 @@ export default function ClientPage() {
                         >
                             {tabs.map((tab) => {
                                 const on = tab.id === active;
+                                const tone = on ? colors.primary : colors.textSecondary;
+                                const count = counts[tab.id];
 
                                 return (
                                     <TouchableOpacity
@@ -139,20 +208,19 @@ export default function ClientPage() {
                                             { borderBottomColor: on ? colors.primary : 'transparent' },
                                         ]}
                                     >
-                                        <Ionicons
-                                            name={tab.icon}
-                                            size={16}
-                                            color={on ? colors.primary : colors.textSecondary}
-                                        />
+                                        <Ionicons name={tab.icon} size={16} color={tone} />
                                         <Text
                                             style={[
                                                 styles.tabLabel,
-                                                { color: on ? colors.primary : colors.textSecondary },
+                                                { color: tone },
                                                 on && { fontWeight: '700' },
                                             ]}
                                         >
                                             {tab.label}
                                         </Text>
+                                        {typeof count === 'number' ? (
+                                            <Text style={[styles.tabCount, { color: tone }]}>{count}</Text>
+                                        ) : null}
                                     </TouchableOpacity>
                                 );
                             })}
@@ -160,7 +228,7 @@ export default function ClientPage() {
                     </View>
 
                     <View style={styles.body}>
-                        {Body ? <Body clientId={id} client={client} /> : null}
+                        {Body ? <Body clientId={id} client={client} {...bodyProps} /> : null}
                     </View>
                 </>
             )}
@@ -170,12 +238,22 @@ export default function ClientPage() {
 
 const styles = StyleSheet.create({
     screen: { flex: 1 },
-    identity: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderBottomWidth: 1 },
-    logo: { width: 46, height: 46, borderRadius: 10 },
-    logoFallback: { alignItems: 'center', justifyContent: 'center' },
+    identity: {
+        gap: 12,
+        paddingTop: 16, paddingHorizontal: 16, paddingBottom: 12,
+        borderBottomWidth: 1,
+    },
+    head: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     identityCopy: { flex: 1, gap: 2 },
     name: { fontSize: 17, fontWeight: '700' },
     meta: { fontSize: 12 },
+    actions: { flexDirection: 'row', gap: 8 },
+    action: {
+        flex: 1, borderWidth: 1, borderRadius: 10,
+        paddingVertical: 9,
+        flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6,
+    },
+    actionLabel: { fontSize: 13, fontWeight: '600' },
     tabBar: { borderBottomWidth: 1 },
     tabBarContent: { paddingHorizontal: 8 },
     tabBtn: {
@@ -184,5 +262,6 @@ const styles = StyleSheet.create({
         borderBottomWidth: 2,
     },
     tabLabel: { fontSize: 13, fontWeight: '600' },
+    tabCount: { fontSize: 11, fontWeight: '700' },
     body: { flex: 1 },
 });

@@ -10,7 +10,7 @@ import useDebounced from '../../utils/useDebounced';
 // Scoped by the client_id QUERY parameter. The clients/{client}/assets path
 // segment is ignored by the controller, so passing it alone would return every
 // asset the staff member can reach — see gap 5 in docs/api-contract.md.
-export default function AssetsTab({ clientId }) {
+export default function AssetsTab({ clientId, onCount }) {
     const { useTheme } = Theme;
     const { theme } = useTheme();
     const { colors } = theme;
@@ -41,6 +41,13 @@ export default function AssetsTab({ clientId }) {
     }, [clientId]);
 
     useEffect(() => { load(); }, [load]);
+
+    // Everything the client owns, not what the search box has narrowed it to:
+    // the tab bar reports the list, the search only sifts it. An errored list
+    // reports nothing rather than zero.
+    useEffect(() => {
+        if (!loading && !error) onCount?.(rows.length);
+    }, [loading, error, rows, onCount]);
 
     const visible = term
         ? rows.filter((a) => `${a.name || ''} ${a.serial || ''} ${a.model || ''}`
