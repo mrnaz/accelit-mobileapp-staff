@@ -15,7 +15,7 @@ import Card, { cardGap, CardHeader, cardBodyPadding } from '../components/Card';
 import LabelValue from '../components/LabelValue';
 import Avatar from '../components/Avatar';
 import IconButton from '../components/IconButton';
-import { priorityColor, priorityLabel, isMine } from '../utils/tickets';
+import { priorityColor, priorityLabel } from '../utils/tickets';
 import { dateTime, relativeTime } from '../utils/datetime';
 import { formatPhone, dialUri, mailUri } from '../utils/phone';
 
@@ -65,6 +65,11 @@ export default function TicketPage() {
 
     const body = ticket?.body?.trim();
 
+    // `assigned_staff_id` is a list-endpoint column and is not on this
+    // payload: the single ticket carries its assignment in `assignees[]`.
+    const mine = !!staff?.id
+        && (ticket?.assignees || []).some((a) => String(a.staff_id) === String(staff.id));
+
     // The single ticket endpoint carries the reporter inside `affected_users`
     // rather than as flat fields on the ticket itself — the reporter-flagged
     // entry when there is one, else the first affected user.
@@ -74,10 +79,11 @@ export default function TicketPage() {
         return users.find((u) => u.reporter) || users[0] || null;
     }, [ticket]);
 
+    // An affected_users entry with no name behind it is not worth a card, so
+    // the card below is gated on the resolved name rather than on the entry.
     const contactName = reporter && (reporter.client_contact_full_name
         || reporter.name
-        || `${reporter.fname || ''} ${reporter.sname || ''}`.trim()
-        || 'Unknown');
+        || `${reporter.fname || ''} ${reporter.sname || ''}`.trim());
     const contactPosition = reporter?.client_contact_position || reporter?.position;
     const contactPhone = reporter?.client_contact_phone || reporter?.phone;
     const contactEmail = reporter?.client_contact_email || reporter?.email;
@@ -146,7 +152,7 @@ export default function TicketPage() {
                                 </Text>
                             </View>
 
-                            {isMine(ticket, staff) ? (
+                            {mine ? (
                                 <View style={[styles.chip, { backgroundColor: colors.primary + '1A' }]}>
                                     <Text style={[styles.chipText, { color: colors.primary }]}>You</Text>
                                 </View>
@@ -177,7 +183,7 @@ export default function TicketPage() {
                         </View>
                     </Card>
 
-                    {reporter ? (
+                    {contactName ? (
                         <Card>
                             <CardHeader title="Reported by" />
                             <View style={styles.contactRow}>
