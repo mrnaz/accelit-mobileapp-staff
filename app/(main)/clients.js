@@ -1,29 +1,22 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, FlatList, RefreshControl, TouchableOpacity, Linking, StyleSheet } from 'react-native';
+import { View, Text, FlatList, RefreshControl, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import Theme from '../context/ThemeContext';
 import api from '../services/api';
-import Card, { CardHeader, cardGap } from '../components/Card';
+import { CardHeader } from '../components/Card';
 import Avatar from '../components/Avatar';
-import IconButton from '../components/IconButton';
 import ScreenState from '../components/ScreenState';
 import SearchField from '../components/SearchField';
 import Pills from '../components/Pills';
 import useDebounced from '../utils/useDebounced';
 import { clientMeta } from '../utils/clients';
-import { dialUri } from '../utils/phone';
 
 const FILTERS = [
     { value: 'active', label: 'Active' },
     { value: 'inactive', label: 'Inactive' },
     { value: 'all', label: 'All' },
 ];
-
-// The list is one card, like the tickets tab: a header band with the filter
-// and the total, then every row separated by dividers. The FlatList carries
-// that single card so pull-to-refresh keeps working.
-const CARD = [{ key: 'clients-card' }];
 
 // GET /api/clients returns a BARE ARRAY, every accessible client in one
 // response, with no pagination and a `search` parameter the backend ignores.
@@ -79,44 +72,45 @@ export default function Clients() {
         return list;
     }, [rows, filter, term]);
 
-    // GET /api/clients does not return `phone` on list rows (only the client
-    // detail endpoint does), so the call button is always dimmed here rather
-    // than dialling a number nobody sent.
-    const callUri = dialUri(null);
+    // The list still reads as one card, but the card is assembled from the
+    // list's own chrome rather than wrapping the rows in a <Card>: this
+    // endpoint is unpaginated, so a mapped card mounts every accessible client
+    // in one pass. The header carries the top corners and the top border, each
+    // row the sides, the footer the bottom. The card's shadow is dropped —
+    // three stacked views cannot cast one shadow between them.
+    const edge = useMemo(() => ({
+        backgroundColor: colors.cardBackground,
+        borderColor: colors.borderStrong || colors.border,
+    }), [colors]);
 
-    const renderCard = useCallback(() => (
-        <Card>
-            <CardHeader title={FILTERS.find((f) => f.value === filter).label} meta={visible.length} />
-            {visible.map((item, index) => (
-                <TouchableOpacity
-                    key={String(item.id)}
-                    activeOpacity={0.85}
-                    onPress={() => router.push(`/client/${item.id}`)}
-                    style={[styles.row, index > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
-                >
-                    <Avatar uri={item.logo} name={item.name} id={item.id} size={40} />
+    const renderRow = useCallback(({ item, index }) => (
+        <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => router.push(`/client/${item.id}`)}
+            style={[
+                styles.row,
+                {
+                    backgroundColor: edge.backgroundColor,
+                    borderLeftColor: edge.borderColor,
+                    borderRightColor: edge.borderColor,
+                },
+                index > 0 && { borderTopWidth: 1, borderTopColor: colors.border },
+            ]}
+        >
+            <Avatar uri={item.logo} name={item.name} id={item.id} size={40} />
 
-                    <View style={styles.copy}>
-                        <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
-                            {item.name}
-                        </Text>
-                        <Text style={[styles.meta, { color: colors.textSecondary }]} numberOfLines={1}>
-                            {clientMeta(item)}
-                        </Text>
-                    </View>
+            <View style={styles.copy}>
+                <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
+                    {item.name}
+                </Text>
+                <Text style={[styles.meta, { color: colors.textSecondary }]} numberOfLines={1}>
+                    {clientMeta(item)}
+                </Text>
+            </View>
 
-                    <IconButton
-                        icon="call-outline"
-                        label={`Call ${item.name}`}
-                        disabled={!callUri}
-                        onPress={() => Linking.openURL(callUri)}
-                    />
-
-                    <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-                </TouchableOpacity>
-            ))}
-        </Card>
-    ), [visible, filter, colors, callUri]);
+            <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+        </TouchableOpacity>
+    ), [colors, edge]);
 
     return (
         <View style={styles.screen}>
@@ -126,9 +120,9 @@ export default function Clients() {
             </View>
 
             <FlatList
-                data={visible.length ? CARD : []}
-                keyExtractor={(item) => item.key}
-                renderItem={renderCard}
+                data={visible}
+                keyExtractor={(item) => String(item.id)}
+                renderItem={renderRow}
                 contentContainerStyle={styles.list}
                 refreshControl={
                     <RefreshControl
@@ -137,6 +131,15 @@ export default function Clients() {
                         tintColor={colors.primary}
                     />
                 }
+                ListHeaderComponent={visible.length ? (
+                    <View style={[styles.cardTop, edge]}>
+                        <CardHeader
+                            title={FILTERS.find((f) => f.value === filter).label}
+                            meta={visible.length}
+                        />
+                    </View>
+                ) : null}
+                ListFooterComponent={visible.length ? <View style={[styles.cardBottom, edge]} /> : null}
                 ListEmptyComponent={
                     <ScreenState
                         loading={loading && rows.length === 0}
@@ -156,13 +159,26 @@ export default function Clients() {
 const styles = StyleSheet.create({
     screen: { flex: 1 },
     controls: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 10, gap: 10 },
-    list: { paddingHorizontal: 16, paddingBottom: 24, gap: cardGap, flexGrow: 1 },
+    list: { paddingHorizontal: 16, paddingBottom: 24, flexGrow: 1 },
+    // Radius 16 and the clipped header band are Card's (app/components/Card.js).
+    cardTop: {
+        borderTopLeftRadius: 16, borderTopRightRadius: 16,
+        borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1,
+        overflow: 'hidden',
+    },
+    cardBottom: {
+        height: 12,
+        borderBottomLeftRadius: 16, borderBottomRightRadius: 16,
+        borderBottomWidth: 1, borderLeftWidth: 1, borderRightWidth: 1,
+    },
     row: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
         paddingHorizontal: 16,
         paddingVertical: 10,
+        borderLeftWidth: 1,
+        borderRightWidth: 1,
     },
     copy: { flex: 1, gap: 2 },
     name: { fontSize: 15, fontWeight: '700' },
