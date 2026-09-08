@@ -104,7 +104,9 @@ export default function StaffInfo() {
                                             style={[styles.gridItem, { borderColor: colors.border }]}
                                             onPress={() => go(item.href)}
                                         >
-                                            <FontAwesome name={item.icon} size={22} color={colors.primary} />
+                                            <View style={styles.gridIcon}>
+                                                <FontAwesome name={item.icon} size={22} color={colors.primary} />
+                                            </View>
                                             <Text
                                                 style={[styles.gridLabel, { color: colors.textPrimary }]}
                                                 numberOfLines={2}
@@ -186,13 +188,17 @@ const styles = StyleSheet.create({
         letterSpacing: 0.6, marginBottom: 12,
     },
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    // Icon and label are one block: the glyph sits in a box of fixed height
+    // and the label on a fixed line height, so an icon font's own line
+    // spacing cannot push the label down away from it.
     gridItem: {
-        width: '31%', aspectRatio: 1,
+        width: '31%', minHeight: 84,
         borderWidth: 1, borderRadius: 14,
-        alignItems: 'center', justifyContent: 'center', gap: 8,
-        paddingHorizontal: 6,
+        alignItems: 'center', justifyContent: 'center', gap: 6,
+        paddingHorizontal: 6, paddingVertical: 14,
     },
-    gridLabel: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
+    gridIcon: { height: 26, alignItems: 'center', justifyContent: 'center' },
+    gridLabel: { fontSize: 12, lineHeight: 16, fontWeight: '600', textAlign: 'center' },
 
     card: { width: '100%', borderWidth: 1, borderRadius: 16, padding: 18, gap: 4 },
     cardName: { fontSize: 16, fontWeight: '700' },
