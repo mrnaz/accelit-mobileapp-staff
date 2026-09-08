@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { partitionTickets } from '../app/utils/tickets.js';
+import { partitionTickets, tagTint } from '../app/utils/tickets.js';
 
 const staff = { id: 5 };
 const rows = [
@@ -23,5 +23,21 @@ describe('partitionTickets', () => {
 
     it('treats an unknown staff member as owning nothing', () => {
         expect(partitionTickets(rows, null, 3).yours).toEqual([]);
+    });
+});
+
+describe('tagTint', () => {
+    const colors = { primary: '#4b8fc8' };
+
+    it('draws the chip in the tag colour', () => {
+        expect(tagTint({ color: '#00ff00' }, colors))
+            .toEqual({ text: '#00ff00', border: '#00ff00', background: '#00ff001A' });
+    });
+
+    it('falls back to the primary colour when the tag colour is missing or not hex', () => {
+        expect(tagTint({ color: null }, colors).text).toBe('#4b8fc8');
+        expect(tagTint({ color: 'red' }, colors).text).toBe('#4b8fc8');
+        expect(tagTint({ color: '#fff' }, colors).text).toBe('#4b8fc8');
+        expect(tagTint(null, colors).text).toBe('#4b8fc8');
     });
 });

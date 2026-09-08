@@ -8,6 +8,15 @@ export function priorityLabel(code) {
     return priorityLabels[code] || 'Normal';
 }
 
+// Chip colours for one of a ticket's tags ({ id, label, color }). The tag's
+// own colour draws the text and outline over a faint wash of itself; a tag
+// with no usable six-digit hex colour takes the primary colour instead.
+export function tagTint(tag, colors) {
+    const color = /^#[0-9a-fA-F]{6}$/.test(String(tag?.color || '')) ? tag.color : colors.primary;
+
+    return { text: color, border: color, background: color + '1A' };
+}
+
 export function isOpen(ticket) {
     // There is no status column on tickets — open is completed_at IS NULL.
     return !ticket?.completed_at;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseApiDate, shortDate, ageDays } from '../app/utils/datetime.js';
+import { parseApiDate, shortDate, ageDays, longDateTime } from '../app/utils/datetime.js';
 
 describe('parseApiDate', () => {
     it('parses the postgres shape hermes rejects', () => {
@@ -43,5 +43,19 @@ describe('ageDays', () => {
         expect(ageDays(null, now)).toBeNull();
         expect(ageDays('', now)).toBeNull();
         expect(ageDays('not a date', now)).toBeNull();
+    });
+});
+
+describe('longDateTime', () => {
+    // The ticket header spells the day and month out: "Created at: Monday,
+    // 12 January, 2026 @ 1:37pm". An offset-less input parses as local time,
+    // so the expectation holds in whatever zone the tests run.
+    it('spells the day and month out', () => {
+        expect(longDateTime('2026-01-12 13:37:00')).toBe('Monday, 12 January, 2026 @ 1:37pm');
+    });
+
+    it('returns null for nothing or garbage', () => {
+        expect(longDateTime(null)).toBeNull();
+        expect(longDateTime('not a date')).toBeNull();
     });
 });

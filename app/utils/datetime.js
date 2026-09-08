@@ -35,6 +35,13 @@ export function dateTime(value) {
     return parsed ? parsed.format('D MMM YYYY, h:mma') : null;
 }
 
+// "Monday, 12 January, 2026 @ 1:37pm" — the ticket header's created-at line.
+export function longDateTime(value) {
+    const parsed = parseApiDate(value);
+
+    return parsed ? parsed.format('dddd, D MMMM, YYYY @ h:mma') : null;
+}
+
 // Whole days since `value`, truncated, the way the web ticket list's
 // ticketAge does it: dayjs().diff(created_at, 'day'). `now` is injectable so
 // tests can pin the clock.
