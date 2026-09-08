@@ -195,8 +195,10 @@ class ApiService {
         return this.request(endpoints.CLIENT_PASSWORD(id, passwordId));
     }
 
-    clientInvoices(id) {
-        return this.request(endpoints.INVOICES, { query: { clientId: id } });
+    // Returns {invoices: [...], total: n}, newest issued first. Honours
+    // limit/page; `total` is the count for the whole client.
+    clientInvoices(id, { page = 1, limit = 50 } = {}) {
+        return this.request(endpoints.INVOICES, { query: { clientId: id, page, limit } });
     }
 
     // ─── Tickets ────────────────────────────────────────────────────────────
