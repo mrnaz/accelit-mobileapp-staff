@@ -9,7 +9,7 @@
       "distribution": "internal",
       "channel": "development",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://app.accelit.com.au"
+        "EXPO_PUBLIC_API_URL": "https://st.accelit.online"
       }
     },
     "preview": {
@@ -19,14 +19,14 @@
       },
       "channel": "preview",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://app.accelit.com.au"
+        "EXPO_PUBLIC_API_URL": "https://st.accelit.online"
       }
     },
     "production": {
       "autoIncrement": true,
       "channel": "production",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://app.accelit.com.au"
+        "EXPO_PUBLIC_API_URL": "https://app.accelit.online"
       }
     }
   },

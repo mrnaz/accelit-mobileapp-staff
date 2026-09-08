@@ -4,7 +4,7 @@ import endpoints from '../constants/endpoints';
 import { STORAGE_KEYS, ALL_AUTH_KEYS } from '../constants/storageKeys';
 import { isIpRefusal, errorMessage } from '../utils/apiErrors';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://app.accelit.com.au';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://app.accelit.online';
 
 // The admin host. These routes are registered inside Route::domain($adminDomain),
 // so pointing at the client-portal host returns 404 for every one of them.

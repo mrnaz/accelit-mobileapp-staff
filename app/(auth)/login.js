@@ -40,8 +40,13 @@ export default function LoginScreen() {
                     return;
                 }
             } catch {
-                // The check itself failed. Let the user try to log in rather
-                // than stranding them on a VPN screen that may be wrong.
+                // The check could not reach the server at all. That is the VPN
+                // gate's case too: it re-checks every few seconds and signs the
+                // user in when the network appears. Staying here would show a
+                // "VPN connected" line the app has no evidence for.
+                if (!cancelled) router.replace('/(auth)/vpn');
+
+                return;
             }
 
             if (!cancelled) setGateChecked(true);
