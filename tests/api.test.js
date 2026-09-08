@@ -51,3 +51,42 @@ describe('api.restore', () => {
         expect(await api.restore()).toBeNull();
     });
 });
+
+// A 401 means "your session is over" only when a session was sent. The login
+// route answers a wrong password with 401 too; bouncing to the login screen
+// on that remounts the form and loses the error before it is shown.
+import { router } from 'expo-router';
+
+const reply = (status, body) => vi.fn(async () => ({
+    ok: status >= 200 && status < 300,
+    status,
+    text: async () => JSON.stringify(body),
+}));
+
+describe('api 401 handling', () => {
+    beforeEach(() => {
+        router.replace.mockClear();
+    });
+
+    it('surfaces a wrong password as an error instead of restarting the login screen', async () => {
+        vi.stubGlobal('fetch', reply(401, { errors: { credentials: ['Invalid Username or Password.'] } }));
+
+        await expect(api.login('jo@accelit.com.au', 'nope')).rejects.toMatchObject({
+            status: 401,
+            message: 'Invalid Username or Password.',
+        });
+        expect(router.replace).not.toHaveBeenCalled();
+        expect(store.data.size).toBe(0);
+    });
+
+    it('still ends the session when an authenticated request gets a 401', async () => {
+        store.data.set(STORAGE_KEYS.token, 'full-token');
+        api.setToken('full-token');
+        vi.stubGlobal('fetch', reply(401, { message: 'Unauthenticated.' }));
+
+        await expect(api.me()).rejects.toMatchObject({ status: 401 });
+        expect(router.replace).toHaveBeenCalledWith('/(auth)/login');
+        expect(api.token).toBeNull();
+        expect(store.data.has(STORAGE_KEYS.token)).toBe(false);
+    });
+});

@@ -88,11 +88,15 @@ class ApiService {
 
         if (response.ok) return parsed;
 
-        return this.handleFailure(response, parsed);
+        return this.handleFailure(response, parsed, { session: auth && !!this.token });
     }
 
-    async handleFailure(response, body) {
-        if (response.status === 401) {
+    // `session` says whether the request carried a session token. Only then
+    // does a 401 mean the session is over: the login route answers a wrong
+    // password with 401 as well, and bouncing to the login screen on that
+    // remounts the form and loses the error before anyone reads it.
+    async handleFailure(response, body, { session = true } = {}) {
+        if (response.status === 401 && session) {
             await AsyncStorage.multiRemove(ALL_AUTH_KEYS);
             this.setToken(null);
             router.replace('/(auth)/login');
