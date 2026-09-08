@@ -42,8 +42,7 @@ export default function LoginScreen() {
             } catch {
                 // The check could not reach the server at all. That is the VPN
                 // gate's case too: it re-checks every few seconds and signs the
-                // user in when the network appears. Staying here would show a
-                // "VPN connected" line the app has no evidence for.
+                // user in when the network appears.
                 if (!cancelled) router.replace('/(auth)/vpn');
 
                 return;
@@ -168,10 +167,6 @@ export default function LoginScreen() {
                         </TouchableOpacity>
                     </View>
 
-                    <View style={styles.statusRow}>
-                        <Ionicons name="shield-checkmark-outline" size={14} color="#28C76F" />
-                        <Text style={styles.statusText}>Office VPN connected</Text>
-                    </View>
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -213,9 +208,4 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     buttonText: { color: t.onAccent, fontSize: 15, fontWeight: '700' },
-    statusRow: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-        gap: 6, marginTop: 18,
-    },
-    statusText: { color: t.textSecondary, fontSize: 12 },
 });
