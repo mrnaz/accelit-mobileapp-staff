@@ -6,10 +6,30 @@ import Card, { cardGap } from '../Card';
 import ScreenState from '../ScreenState';
 import SearchField from '../SearchField';
 import useDebounced from '../../utils/useDebounced';
+import { assetName, serviceId, lastLogin, lanIp, assetSearchText } from '../../utils/assets';
+
+// One line of the asset card: a fixed-width label and the value beside it.
+function Fact({ label, value }) {
+    const { useTheme } = Theme;
+    const { theme } = useTheme();
+    const { colors } = theme;
+
+    return (
+        <View style={styles.fact}>
+            <Text style={[styles.factLabel, { color: colors.textSecondary }]}>{label}</Text>
+            <Text style={[styles.factValue, { color: colors.textPrimary }]} numberOfLines={1}>
+                {value || '—'}
+            </Text>
+        </View>
+    );
+}
 
 // Scoped by the client_id QUERY parameter. The clients/{client}/assets path
 // segment is ignored by the controller, so passing it alone would return every
 // asset the staff member can reach — see gap 5 in docs/api-contract.md.
+//
+// Each card shows what the web's asset list shows: the label, the RMM's
+// domain\computer as the service id, who last logged in, and the LAN address.
 export default function AssetsTab({ clientId, onCount }) {
     const { useTheme } = Theme;
     const { theme } = useTheme();
@@ -49,15 +69,12 @@ export default function AssetsTab({ clientId, onCount }) {
         if (!loading && !error) onCount?.(rows.length);
     }, [loading, error, rows, onCount]);
 
-    const visible = term
-        ? rows.filter((a) => `${a.name || ''} ${a.serial || ''} ${a.model || ''}`
-            .toLowerCase().includes(term))
-        : rows;
+    const visible = term ? rows.filter((a) => assetSearchText(a).includes(term)) : rows;
 
     return (
         <View style={styles.wrap}>
             <View style={styles.controls}>
-                <SearchField value={search} onChangeText={setSearch} placeholder="Name, serial or model" />
+                <SearchField value={search} onChangeText={setSearch} placeholder="Name, computer, user or IP" />
             </View>
 
             <FlatList
@@ -67,12 +84,13 @@ export default function AssetsTab({ clientId, onCount }) {
                 renderItem={({ item }) => (
                     <Card style={styles.card}>
                         <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
-                            {item.name || item.hostname || 'Unnamed asset'}
+                            {assetName(item)}
                         </Text>
-                        <Text style={[styles.meta, { color: colors.textSecondary }]} numberOfLines={2}>
-                            {[item.type, item.model, item.serial ? `SN ${item.serial}` : null]
-                                .filter(Boolean).join(' · ') || '—'}
-                        </Text>
+                        <View style={styles.facts}>
+                            <Fact label="Service ID" value={serviceId(item)} />
+                            <Fact label="Last login" value={lastLogin(item)} />
+                            <Fact label="LAN IP" value={lanIp(item)} />
+                        </View>
                     </Card>
                 )}
                 refreshControl={
@@ -100,7 +118,10 @@ const styles = StyleSheet.create({
     wrap: { flex: 1 },
     controls: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10 },
     list: { paddingHorizontal: 16, paddingBottom: 24, gap: cardGap, flexGrow: 1 },
-    card: { padding: 12, gap: 3 },
+    card: { padding: 12, gap: 8 },
     name: { fontSize: 15, fontWeight: '700' },
-    meta: { fontSize: 12 },
+    facts: { gap: 4 },
+    fact: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    factLabel: { fontSize: 12, fontWeight: '600', width: 76 },
+    factValue: { flex: 1, fontSize: 13, fontWeight: '500' },
 });
