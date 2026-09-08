@@ -42,11 +42,19 @@ export default function GeneralTab({ client, contacts, onShowContacts }) {
                 <Card>
                     <CardHeader title="Site" meta={site?.sitename || undefined} />
                     <View style={styles.inner}>
-                        <LabelValue label="Address" value={address} uri={mapsUri(address)} />
+                        <LabelValue
+                            label="Address"
+                            value={address}
+                            uri={mapsUri(address)}
+                            icon="navigate-outline"
+                            iconLabel="Directions"
+                        />
                         <LabelValue
                             label="Phone"
                             value={formatPhone(client?.phone)}
                             uri={dialUri(client?.phone)}
+                            icon="call-outline"
+                            iconLabel="Call"
                         />
                         <LabelValue
                             label="Website"

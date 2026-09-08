@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Linking, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -11,9 +11,6 @@ import Avatar from '../components/Avatar';
 import DetailHeader from '../components/DetailHeader';
 import ScreenState from '../components/ScreenState';
 import { visibleTabs } from '../utils/clientTabs';
-import { addressLine } from '../utils/address';
-import { mapsUri } from '../utils/maps';
-import { dialUri, mailUri } from '../utils/phone';
 import GeneralTab from '../components/client/GeneralTab';
 import ContactsTab from '../components/client/ContactsTab';
 import TicketsTab from '../components/client/TicketsTab';
@@ -129,34 +126,27 @@ export default function ClientPage() {
     const site = client?.primary_site;
     const open = Number(client?.open_tickets) || 0;
 
-    const meta = [
+    // The header's second line. Same wording as the clients list
+    // (utils/clients.js clientMeta), so the row you tapped and the page you
+    // land on agree.
+    const subtitle = [
+        client?.status === 'inactive' ? 'Inactive' : null,
         site?.sitename,
         site?.address?.suburbcity,
-        // Same wording as the clients list (utils/clients.js clientMeta), so
-        // the row you tapped and the page you land on agree.
         open > 0 ? `${open} open ${open === 1 ? 'ticket' : 'tickets'}` : null,
-    ].filter(Boolean).join(' · ');
-
-    // A button with nothing behind it is dropped rather than dimmed: there is
-    // no row height to keep here, and three is already the maximum.
-    const actions = [
-        { key: 'call', icon: 'call-outline', label: 'Call', uri: dialUri(client?.phone) },
-        { key: 'email', icon: 'mail-outline', label: 'Email', uri: mailUri(client?.email) },
-        {
-            key: 'directions',
-            icon: 'navigate-outline',
-            label: 'Directions',
-            uri: mapsUri(addressLine(site?.address)),
-        },
-    ].filter((action) => action.uri);
+    ].filter(Boolean).join(' · ') || null;
 
     return (
         <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
             <StatusBar style={mode === 'light' ? 'dark' : 'light'} />
 
             <DetailHeader
+                align="left"
                 title={client?.name || 'Client'}
-                subtitle={client?.status === 'inactive' ? 'Inactive' : null}
+                subtitle={subtitle}
+                leading={client ? (
+                    <Avatar uri={client.logo} name={client.name} id={client.id} size={36} />
+                ) : null}
                 fallback="/(main)/clients"
             />
 
@@ -171,42 +161,6 @@ export default function ClientPage() {
                 />
             ) : (
                 <>
-                    <View style={[styles.identity, { borderBottomColor: colors.border }]}>
-                        <View style={styles.head}>
-                            <Avatar uri={client?.logo} name={client?.name} id={client?.id} size={46} />
-
-                            <View style={styles.identityCopy}>
-                                <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={2}>
-                                    {client?.name}
-                                </Text>
-                                {meta ? (
-                                    <Text style={[styles.meta, { color: colors.textSecondary }]} numberOfLines={1}>
-                                        {meta}
-                                    </Text>
-                                ) : null}
-                            </View>
-                        </View>
-
-                        {actions.length ? (
-                            <View style={styles.actions}>
-                                {actions.map((action) => (
-                                    <TouchableOpacity
-                                        key={action.key}
-                                        onPress={() => Linking.openURL(action.uri)}
-                                        style={[styles.action, { borderColor: colors.border }]}
-                                        accessibilityRole="button"
-                                        accessibilityLabel={action.label}
-                                    >
-                                        <Ionicons name={action.icon} size={15} color={colors.primary} />
-                                        <Text style={[styles.actionLabel, { color: colors.textPrimary }]}>
-                                            {action.label}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        ) : null}
-                    </View>
-
                     <View style={[styles.tabBar, { borderBottomColor: colors.border }]}>
                         <ScrollView
                             horizontal
@@ -257,22 +211,6 @@ export default function ClientPage() {
 
 const styles = StyleSheet.create({
     screen: { flex: 1 },
-    identity: {
-        gap: 12,
-        paddingTop: 16, paddingHorizontal: 16, paddingBottom: 12,
-        borderBottomWidth: 1,
-    },
-    head: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    identityCopy: { flex: 1, gap: 2 },
-    name: { fontSize: 17, fontWeight: '700' },
-    meta: { fontSize: 12 },
-    actions: { flexDirection: 'row', gap: 8 },
-    action: {
-        flex: 1, borderWidth: 1, borderRadius: 10,
-        paddingVertical: 9,
-        flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6,
-    },
-    actionLabel: { fontSize: 13, fontWeight: '600' },
     tabBar: { borderBottomWidth: 1 },
     tabBarContent: { paddingHorizontal: 8 },
     tabBtn: {
