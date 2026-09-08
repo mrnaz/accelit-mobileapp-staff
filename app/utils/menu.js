@@ -35,16 +35,16 @@ export const MENU = [
     },
 ];
 
-// The dashboard itself. It is not a MENU entry: the dashboard's tiles and stat
-// requests iterate visibleMenu, and a tile for the screen you are on is noise.
-// The Jump-to grid adds it in front, because on iOS that grid is the only way
-// back — the tabs have no bar, and there is no back gesture out of a tab.
+// The dashboard itself. It is not a MENU entry: MENU is the set of
+// destinations away from home. The Jump-to grid adds it in front, because on
+// iOS that grid is the only way back — the tabs have no bar, and there is no
+// back gesture out of a tab.
 export const HOME = {
     key: 'dashboard',
     label: 'Dashboard',
     icon: 'home',
     href: '/(main)',
-    hint: 'Your tickets and the numbers',
+    hint: 'Your open tickets',
 };
 
 export function jumpMenu(staff) {
