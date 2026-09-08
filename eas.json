@@ -19,7 +19,7 @@
       },
       "channel": "preview",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://st.accelit.online"
+        "EXPO_PUBLIC_API_URL": "https://app.accelit.online"
       }
     },
     "production": {
