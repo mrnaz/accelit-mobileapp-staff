@@ -21,7 +21,10 @@ const MASK = '••••••••••••';
 // leaves the foreground (the OS writes the app-switcher snapshot to disk).
 // The value lives only in this component's state, which goes with it when
 // the screen or tab unmounts.
-export default function RevealField({ label, value, onReveal, large }) {
+//
+// `showLabel={false}` drops the printed label where the card already says
+// what the field is (the passwords list); `label` still names the button.
+export default function RevealField({ label, value, onReveal, large, showLabel = true }) {
     const { useTheme } = Theme;
     const { theme } = useTheme();
     const { colors } = theme;
@@ -71,7 +74,9 @@ export default function RevealField({ label, value, onReveal, large }) {
 
     return (
         <View style={styles.wrap}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
+            {showLabel ? (
+                <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
+            ) : null}
 
             <View style={styles.row}>
                 <Text

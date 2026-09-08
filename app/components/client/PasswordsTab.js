@@ -61,7 +61,7 @@ export default function PasswordsTab({ clientId }) {
                     ) : null}
 
                     <View style={styles.field}>
-                        <RevealField label="Password" value={item.password ?? '—'} />
+                        <RevealField label="Password" value={item.password ?? '—'} showLabel={false} />
                     </View>
 
                     {item.otp ? (

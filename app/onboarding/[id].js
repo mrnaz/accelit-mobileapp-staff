@@ -110,19 +110,7 @@ export default function OnboardingRecord() {
                                 </View>
                             </View>
 
-                            <View>
-                                <View
-                                    style={[
-                                        styles.passwordBox,
-                                        { borderColor: colors.border, backgroundColor: colors.inputBackground },
-                                    ]}
-                                >
-                                    <RevealField label="Password" value={record?.localadmin_pw ?? '—'} large />
-                                </View>
-                                <Text style={[styles.hint, { color: colors.textSecondary }]}>
-                                    Tap the eye to reveal. Never shown by default. Hides again when you leave this screen.
-                                </Text>
-                            </View>
+                            <RevealField label="Password" value={record?.localadmin_pw ?? '—'} large />
                         </View>
                     </Card>
 
@@ -135,10 +123,6 @@ export default function OnboardingRecord() {
                             <LabelValue label="Deployed" value={shortDate(record?.created_at)} last />
                         </View>
                     </Card>
-
-                    <Text style={[styles.footnote, { color: colors.textSecondary }]}>
-                        Replaces the printed label. Read only.
-                    </Text>
                 </ScrollView>
             )}
 
@@ -159,7 +143,4 @@ const styles = StyleSheet.create({
         flex: 1, fontSize: 18, fontWeight: '700',
         fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     },
-    passwordBox: { borderWidth: 1, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14 },
-    hint: { fontSize: 11, marginTop: 8 },
-    footnote: { fontSize: 11, textAlign: 'center', marginTop: 2 },
 });
