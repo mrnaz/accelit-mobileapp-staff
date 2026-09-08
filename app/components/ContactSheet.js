@@ -33,12 +33,11 @@ function ActionTile({ icon, label, disabled, onPress }) {
 }
 
 // Everything you can do with one person, one tap from the row that named them.
-// `onUsed` fires on a call, text or email so the screen can bump its recents.
 //
 // The copy toast lives in here rather than on the screen: a Modal is its own
 // native window above every parent view, so a pill rendered beside the sheet
 // would be painted underneath it.
-export default function ContactSheet({ person, visible, onClose, onUsed }) {
+export default function ContactSheet({ person, visible, onClose }) {
     const { useTheme } = Theme;
     const { theme } = useTheme();
     const { colors } = theme;
@@ -59,10 +58,7 @@ export default function ContactSheet({ person, visible, onClose, onUsed }) {
     const sms = smsUri(subject.phone);
     const mail = mailUri(subject.email);
 
-    const use = (uri) => {
-        Linking.openURL(uri);
-        onUsed?.();
-    };
+    const use = (uri) => Linking.openURL(uri);
 
     const copy = async () => {
         await Clipboard.setStringAsync(shownPhone);

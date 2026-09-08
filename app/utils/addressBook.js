@@ -5,7 +5,6 @@ export function toPerson(row) {
     const subtitle = isClient ? 'Main line' : (row?.client_name || 'General contact');
 
     return {
-        key: recentKey(row),
         name: row?.displayname || '',
         subtitle,
         phone: row?.phone || null,
@@ -14,21 +13,7 @@ export function toPerson(row) {
         clientId: row?.client_id ?? null,
         clientName: row?.client_name || null,
         avatarId: row?.contact_id ?? row?.client_id ?? null,
-        // The recents strip shows a first name only for someone you would
-        // call by it. A client is a company and a general contact is a desk
-        // ("Vendor Support"), so both keep their full name.
-        firstName: row?.type === 'client_contact'
-            ? (row?.fname || row?.displayname || '')
-            : (row?.displayname || ''),
     };
-}
-
-export function recentKey(row) {
-    return `${row?.type}-${row?.contact_id ?? row?.client_id}`;
-}
-
-export function bumpRecent(keys, key, max = 8) {
-    return [key, ...(keys || []).filter((k) => k !== key)].slice(0, max);
 }
 
 const letterOf = (name) => {

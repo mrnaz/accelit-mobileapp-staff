@@ -10,9 +10,8 @@ import { formatPhone, dialUri } from '../utils/phone';
 // else, so the only button left is the one thing the screen exists for.
 //
 // `badge` overrides the default `Client` badge — the client page's contacts
-// tab marks its primary contact with it. `onCalled` fires alongside the dial,
-// so a screen that keeps recents counts the row's own button as a use.
-export default function PersonRow({ person, onPress, showDivider, badge, onCalled }) {
+// tab marks its primary contact with it.
+export default function PersonRow({ person, onPress, showDivider, badge }) {
     const { useTheme } = Theme;
     const { theme } = useTheme();
     const { colors } = theme;
@@ -50,10 +49,7 @@ export default function PersonRow({ person, onPress, showDivider, badge, onCalle
                 icon="call-outline"
                 label={`Call ${person.name}`}
                 disabled={!tel}
-                onPress={() => {
-                    Linking.openURL(tel);
-                    onCalled?.();
-                }}
+                onPress={() => Linking.openURL(tel)}
             />
         </View>
     );
