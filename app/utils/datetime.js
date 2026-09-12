@@ -42,6 +42,15 @@ export function longDateTime(value) {
     return parsed ? parsed.format('dddd, D MMMM, YYYY @ h:mma') : null;
 }
 
+// "Mon, 2 Sep 2026 @ 3:27pm" — the stamp on an onboarding record, on the list
+// and on the deployment page alike, so the same machine reads the same way in
+// both places.
+export function weekdayDateTime(value) {
+    const parsed = parseApiDate(value);
+
+    return parsed ? parsed.format('ddd, D MMM YYYY @ h:mma') : null;
+}
+
 // Whole days since `value`, truncated, the way the web ticket list's
 // ticketAge does it: dayjs().diff(created_at, 'day'). `now` is injectable so
 // tests can pin the clock.

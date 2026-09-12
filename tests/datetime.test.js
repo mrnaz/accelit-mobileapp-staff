@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseApiDate, shortDate, ageDays, longDateTime } from '../app/utils/datetime.js';
+import { parseApiDate, shortDate, ageDays, longDateTime, weekdayDateTime } from '../app/utils/datetime.js';
 
 describe('parseApiDate', () => {
     it('parses the postgres shape hermes rejects', () => {
@@ -57,5 +57,29 @@ describe('longDateTime', () => {
     it('returns null for nothing or garbage', () => {
         expect(longDateTime(null)).toBeNull();
         expect(longDateTime('not a date')).toBeNull();
+    });
+});
+
+describe('weekdayDateTime', () => {
+    // The onboarding list and the deployment page stamp each record with the
+    // day it happened: "Mon, 2 Sep 2026 @ 3:27pm". An offset-less input parses
+    // as local time, so the expectation holds in whatever zone the tests run.
+    it('leads with the short weekday and ends with the time', () => {
+        expect(weekdayDateTime('2026-01-12 13:37:00')).toBe('Mon, 12 Jan 2026 @ 1:37pm');
+        expect(weekdayDateTime('2026-09-02 15:27:00')).toBe('Wed, 2 Sep 2026 @ 3:27pm');
+    });
+
+    it('reads the postgres shape the API actually sends', () => {
+        expect(weekdayDateTime('2026-01-12 13:37:00.172909+00')).toMatch(/^Mon, 12 Jan 2026 @ /);
+    });
+
+    it('pads nothing and keeps midnight readable', () => {
+        expect(weekdayDateTime('2026-01-12 00:05:00')).toBe('Mon, 12 Jan 2026 @ 12:05am');
+    });
+
+    it('returns null for nothing or garbage', () => {
+        expect(weekdayDateTime(null)).toBeNull();
+        expect(weekdayDateTime('')).toBeNull();
+        expect(weekdayDateTime('not a date')).toBeNull();
     });
 });

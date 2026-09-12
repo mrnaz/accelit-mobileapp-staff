@@ -1,15 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, SectionList, RefreshControl, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, FlatList, RefreshControl, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import Theme from '../context/ThemeContext';
 import api from '../services/api';
 import { CardHeader } from '../components/Card';
-import SectionLabel from '../components/SectionLabel';
+import Avatar from '../components/Avatar';
 import ScreenState from '../components/ScreenState';
 import SearchField from '../components/SearchField';
 import useDebounced from '../utils/useDebounced';
-import { groupByClient, machineMeta } from '../utils/onboarding';
+import { weekdayDateTime } from '../utils/datetime';
 
 // GET /api/assets/onboarding returns {assets: [...]} — the latest record per
 // unique computername, unpaginated, with no search parameter. Fetch once,
@@ -49,6 +49,8 @@ export default function Onboarding() {
 
     useEffect(() => { load(); }, [load]);
 
+    // The old name stays in the haystack even though no row shows it: a tech
+    // who only remembers what a machine used to be called can still find it.
     const visible = useMemo(() => {
         if (!term) return rows;
 
@@ -59,44 +61,17 @@ export default function Onboarding() {
         });
     }, [rows, term]);
 
-    const sections = useMemo(
-        () => groupByClient(visible).map((group, index) => ({
-            title: group.client,
-            // The first group sits under the header band, which already draws
-            // its own bottom border.
-            first: index === 0,
-            data: group.items,
-        })),
-        [visible],
-    );
-
     // The list still reads as one card, but the card is assembled from the
     // list's own chrome rather than wrapping the rows in a <Card>: this
     // endpoint returns one record per machine for every client, unpaginated,
     // so a mapped card mounts the lot in one pass. The header carries the top
-    // corners and the top border, each row and group label the sides, the
-    // footer the bottom. The card's shadow is dropped — stacked views cannot
-    // cast one shadow between them.
+    // corners and the top border, each row the sides, the footer the bottom.
+    // The card's shadow is dropped — stacked views cannot cast one shadow
+    // between them.
     const edge = useMemo(() => ({
         backgroundColor: colors.cardBackground,
         borderColor: colors.borderStrong || colors.border,
     }), [colors]);
-
-    const renderSectionHeader = useCallback(({ section }) => (
-        <SectionLabel
-            style={[
-                styles.groupLabel,
-                {
-                    backgroundColor: edge.backgroundColor,
-                    borderLeftColor: edge.borderColor,
-                    borderRightColor: edge.borderColor,
-                },
-                !section.first && { borderTopWidth: 1, borderTopColor: colors.border },
-            ]}
-        >
-            {section.title}
-        </SectionLabel>
-    ), [colors, edge]);
 
     const renderRow = useCallback(({ item, index }) => (
         <TouchableOpacity
@@ -112,16 +87,17 @@ export default function Onboarding() {
                 index > 0 && { borderTopWidth: 1, borderTopColor: colors.border },
             ]}
         >
-            <View style={[styles.iconWrap, { backgroundColor: colors.primary + '1A' }]}>
-                <Ionicons name="laptop-outline" size={18} color={colors.primary} />
-            </View>
+            {/* The machine's client, as the client's own avatar. This endpoint
+                sends no client id or logo, only the name, so it is always the
+                tinted initials rather than a logo. */}
+            <Avatar name={item.client_name} size={40} />
 
             <View style={styles.copy}>
                 <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
                     {item.computername}
                 </Text>
                 <Text style={[styles.meta, { color: colors.textSecondary }]} numberOfLines={1}>
-                    {machineMeta(item)}
+                    {weekdayDateTime(item.created_at)}
                 </Text>
             </View>
 
@@ -135,12 +111,10 @@ export default function Onboarding() {
                 <SearchField value={search} onChangeText={setSearch} placeholder="Computer, old name or client" />
             </View>
 
-            <SectionList
-                sections={sections}
+            <FlatList
+                data={visible}
                 keyExtractor={(item) => String(item.id)}
                 renderItem={renderRow}
-                renderSectionHeader={renderSectionHeader}
-                stickySectionHeadersEnabled={false}
                 contentContainerStyle={styles.list}
                 refreshControl={
                     <RefreshControl
@@ -149,12 +123,12 @@ export default function Onboarding() {
                         tintColor={colors.primary}
                     />
                 }
-                ListHeaderComponent={sections.length ? (
+                ListHeaderComponent={visible.length ? (
                     <View style={[styles.cardTop, edge]}>
                         <CardHeader title="Machines" meta={visible.length} />
                     </View>
                 ) : null}
-                ListFooterComponent={sections.length ? <View style={[styles.cardBottom, edge]} /> : null}
+                ListFooterComponent={visible.length ? <View style={[styles.cardBottom, edge]} /> : null}
                 ListEmptyComponent={
                     <ScreenState
                         loading={loading && rows.length === 0}
@@ -184,10 +158,6 @@ const styles = StyleSheet.create({
         borderBottomLeftRadius: 16, borderBottomRightRadius: 16,
         borderBottomWidth: 1, borderLeftWidth: 1, borderRightWidth: 1,
     },
-    groupLabel: {
-        paddingTop: 10, paddingHorizontal: 16, paddingBottom: 4,
-        borderLeftWidth: 1, borderRightWidth: 1,
-    },
     row: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -197,7 +167,6 @@ const styles = StyleSheet.create({
         borderLeftWidth: 1,
         borderRightWidth: 1,
     },
-    iconWrap: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
     copy: { flex: 1, gap: 2 },
     name: {
         fontSize: 15,

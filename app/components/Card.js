@@ -87,8 +87,10 @@ export default function Card({ style, onPress, activeOpacity = 0.85, children, .
 }
 
 // Tinted band across the top of a card. `title` sits left, `meta` (a count,
-// a status, a control) right. Pass `children` instead for a custom layout.
-export function CardHeader({ title, meta, style, numberOfLines = 2, children }) {
+// a status, a control) right. `metaTone` colours the meta — give it
+// `colors.primary` when the meta is the point rather than a footnote. Pass
+// `children` instead for a custom layout.
+export function CardHeader({ title, meta, metaTone, style, numberOfLines = 2, children }) {
     const { useTheme } = Theme;
     const { theme } = useTheme();
     const { colors } = theme;
@@ -110,7 +112,10 @@ export function CardHeader({ title, meta, style, numberOfLines = 2, children }) 
                         {title}
                     </Text>
                     {meta != null ? (
-                        <Text style={[styles.headerMeta, { color: colors.textSecondary }]} numberOfLines={1}>
+                        <Text
+                            style={[styles.headerMeta, { color: metaTone || colors.textSecondary }]}
+                            numberOfLines={1}
+                        >
                             {meta}
                         </Text>
                     ) : null}

@@ -13,7 +13,7 @@ import LabelValue from '../components/LabelValue';
 import RevealField from '../components/RevealField';
 import IconButton from '../components/IconButton';
 import Toast, { useToast } from '../components/Toast';
-import { shortDate } from '../utils/datetime';
+import { weekdayDateTime } from '../utils/datetime';
 
 // There is no single-record onboarding endpoint — GET /api/assets/onboarding
 // returns the whole set, so the record is picked out of it by id. The list is
@@ -88,9 +88,23 @@ export default function OnboardingRecord() {
                     }
                 >
                     <Card>
+                        <CardHeader title="Machine" />
+                        <View style={styles.machineBody}>
+                            <LabelValue label="Client" value={record?.client_name} />
+                            <LabelValue label="Computer" value={record?.computername} />
+                            <LabelValue label="Was" value={record?.prev_computername} />
+                            <LabelValue label="Deployed" value={weekdayDateTime(record?.created_at)} last />
+                        </View>
+                    </Card>
+
+                    <Card>
+                        {/* The asset label is the point of this header, not a
+                            footnote, so it carries the brand blue — the same
+                            token in both themes. */}
                         <CardHeader
                             title="Local administrator"
-                            meta={'Label ' + (record?.label_code || '—')}
+                            meta={record?.label_code || undefined}
+                            metaTone={colors.primary}
                         />
                         <View style={styles.adminBody}>
                             <View style={styles.usernameBlock}>
@@ -111,16 +125,6 @@ export default function OnboardingRecord() {
                             </View>
 
                             <RevealField label="Password" value={record?.localadmin_pw ?? '—'} large />
-                        </View>
-                    </Card>
-
-                    <Card>
-                        <CardHeader title="Machine" />
-                        <View style={styles.machineBody}>
-                            <LabelValue label="Client" value={record?.client_name} />
-                            <LabelValue label="Computer" value={record?.computername} />
-                            <LabelValue label="Was" value={record?.prev_computername} />
-                            <LabelValue label="Deployed" value={shortDate(record?.created_at)} last />
                         </View>
                     </Card>
                 </ScrollView>
