@@ -3,6 +3,9 @@
   <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
   <uses-permission android:name="android.permission.READ_CONTACTS" />
   <uses-permission android:name="android.permission.WRITE_CONTACTS" />
+  <!-- Normal-level, no runtime prompt. ContentService enforces this on
+       ContentResolver.setIsSyncable/setSyncAutomatically (see AccelAccount). -->
+  <uses-permission android:name="android.permission.WRITE_SYNC_SETTINGS" />
 
   <application>
     <!-- Owns the account type. The system binds to this; when the app is

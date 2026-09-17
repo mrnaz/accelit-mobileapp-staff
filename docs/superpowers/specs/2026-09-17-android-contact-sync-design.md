@@ -111,7 +111,9 @@ and the worker are thin.
   not ours). **To verify on device**; if the declaration proves unnecessary or
   harmful on tested versions it is removed. It uploads nothing under any
   circumstances.
-- Permissions added by the plugin: `READ_CONTACTS`, `WRITE_CONTACTS`.
+- The module manifest declares `READ_CONTACTS`, `WRITE_CONTACTS` and
+  `WRITE_SYNC_SETTINGS` (normal-level; required by
+  `setIsSyncable`/`setSyncAutomatically`).
   `GET_ACCOUNTS`/`AUTHENTICATE_ACCOUNTS`/`MANAGE_ACCOUNTS` are not needed for an
   app's own account type on the supported SDK range (minSdk 24).
 - Backup: `app.json` sets `android.allowBackup: false`. The plugin also sets

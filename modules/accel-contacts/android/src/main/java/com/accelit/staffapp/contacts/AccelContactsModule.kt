@@ -26,11 +26,23 @@ class AccelContactsModule : Module() {
                 throw CodedException("ERR_CONTACTS_PERMISSION", "Contacts permission has not been granted.", null)
             }
 
-            AccelAccount.ensure(context)
-            ContactsStore(context.contentResolver).ensureVisible()
-            SessionStore(context).enabled = true
-            SyncScheduler.schedulePeriodic(context)
-            SyncScheduler.syncNow(context)
+            val createdAccount = AccelAccount.ensure(context)
+
+            try {
+                ContactsStore(context.contentResolver).ensureVisible()
+                SessionStore(context).enabled = true
+                SyncScheduler.schedulePeriodic(context)
+                SyncScheduler.syncNow(context)
+            } catch (e: Exception) {
+                // Enabling is all-or-nothing: a failure here must not leave an
+                // orphaned system account behind a feature that reads as off,
+                // but an account that pre-dated this call is not ours to remove.
+                SyncScheduler.cancelAll(context)
+                SessionStore(context).enabled = false
+                if (createdAccount) AccelAccount.remove(context)
+
+                throw e
+            }
         }
 
         AsyncFunction("disable") {
