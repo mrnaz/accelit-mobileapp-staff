@@ -38,6 +38,13 @@ rendered.
   wherever an SDK exists (EAS/CI or after installing Android Studio).
 - The bearer token lives in AsyncStorage and is owned by `app/services/api.js`.
   The worker runs without JS, so native needs its own copy.
+- The Sanctum token expires 600 minutes after login and has no refresh
+  (`app/constants/storageKeys.js`). Background sync therefore only succeeds for
+  about ten hours after each login; after that every run is a 401, contacts are
+  kept as they were, and sync resumes at the next login. This is inherent to the
+  backend's session model and is not worked around.
+- The API is IP-restricted (VPN). A background run off the VPN fails as
+  `network` or `http` (403) and is retried; contacts are kept.
 - `GET /api/address-book` returns a bare array, no pagination, no revision or
   ETag. Rows are `client_contact` / `general_contact` (keyed by `contact_id`)
   and `client` (keyed by `client_id`). Only rows with an email or phone appear.
@@ -58,7 +65,7 @@ modules/accel-contacts/
   app.plugin.js                  config plugin
   index.js                       JS API, no-op off Android
   android/
-    build.gradle                 work-runtime-ktx, security-crypto, okhttp, junit
+    build.gradle                 work-runtime-ktx, junit, org.json (tests)
     src/main/AndroidManifest.xml
     src/main/res/xml/authenticator.xml
     src/main/res/xml/syncadapter.xml
@@ -68,9 +75,10 @@ modules/accel-contacts/
       StubAuthenticator.kt       AbstractAccountAuthenticator, every method inert
       AuthenticatorService.kt
       StubSyncService.kt         declared only; never syncs
-      SessionStore.kt            EncryptedSharedPreferences
+      SessionStore.kt            private SharedPreferences
       DirectoryEntry.kt          data class + normalisation + hash
-      DirectoryClient.kt         OkHttp fetch + validation → FetchResult
+      DirectoryParser.kt         body → entries, or null when malformed (pure)
+      DirectoryClient.kt         HttpURLConnection fetch → FetchResult
       DirectoryDiff.kt           pure diff
       DeletionGuard.kt           pure mass-deletion check
       ContactsStore.kt           the only class that touches ContactsContract
@@ -182,14 +190,15 @@ Guarded by a process-wide `Mutex` so periodic and one-off runs never overlap.
      `enabled=false`, `success`.
    - no token or base URL → record `lastError=auth`, `retry`.
 2. **Fetch** `GET {baseUrl}/api/address-book` with `Authorization: Bearer` and
-   `Accept: application/json`, 30 s timeouts. `FetchResult` is one of:
+   `Accept: application/json`, 30 s timeouts, redirects not followed. `FetchResult` is one of:
    - `Ok(entries)` — status 200, body parses as a JSON array, every row has a
      known `type` and the id its type requires.
    - `Failure(kind)` — `auth` (401), `http` (any other non-200, including 403),
      `network` (IOException/timeout), `malformed` (anything else, including one
      bad row: a partial directory is not trusted).
-   On `Failure`: write nothing to the provider, record `lastError`, return
-   `retry`. The worker never clears the token, never logs the user out.
+   On `Failure`: write nothing to the provider, record `lastError`; the hourly
+   job returns `retry`, a one-off `syncNow` run returns `failure` (the hourly job
+   is its retry, so a dead token cannot leave a one-off job backing off forever). The worker never clears the token, never logs the user out.
 3. **Diff** server entries against `listOwned()` by `SOURCE_ID`:
    absent locally → create; hash differs → update; absent on server → delete;
    equal → nothing. Duplicate local `SOURCE_ID`s (should never happen) keep the
@@ -222,9 +231,12 @@ repaired by the next one without duplicates.
 
 ## Native session store
 
-`SessionStore` (EncryptedSharedPreferences, excluded from backup by the rules
-above) holds: `token`, `baseUrl`, `enabled`, `lastSuccessAt`, `lastError`,
-`pendingDeleteFingerprint`. No contact data.
+`SessionStore` (a `MODE_PRIVATE` SharedPreferences file, excluded from backup by
+the rules above) holds: `token`, `baseUrl`, `enabled`, `lastSuccessAt`, `lastError`,
+`pendingDeleteFingerprint`. No contact data. Plain private preferences are used
+rather than EncryptedSharedPreferences: the same token already sits in
+AsyncStorage's app-private SQLite file, androidx.security-crypto is deprecated,
+and its keystore failures on some devices would turn into sync outages.
 
 ## JS API (`modules/accel-contacts/index.js`)
 
