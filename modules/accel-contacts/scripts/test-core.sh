@@ -20,8 +20,12 @@ SRC=android/src/main/java/com/accelit/staffapp/contacts
 TEST=android/src/test/java/com/accelit/staffapp/contacts
 CP="$LIB/json.jar:$LIB/junit.jar:$LIB/hamcrest.jar"
 
-kotlinc "$SRC/DirectoryEntry.kt" "$SRC/DirectoryParser.kt" "$SRC/DirectoryDiff.kt" "$SRC/DeletionGuard.kt" \
-    "$TEST"/*.kt -cp "$CP" -include-runtime -d "$OUT" 2>&1 | grep -v '^warning:' || true
+LOG=.core-test/kotlinc.log
+if ! kotlinc "$SRC/DirectoryEntry.kt" "$SRC/DirectoryParser.kt" "$SRC/DirectoryDiff.kt" "$SRC/DeletionGuard.kt" \
+    "$TEST"/*.kt -cp "$CP" -include-runtime -d "$OUT" >"$LOG" 2>&1; then
+    grep -v '^warning:' "$LOG" >&2 || true
+    exit 1
+fi
 
 java -cp "$OUT:$CP" org.junit.runner.JUnitCore \
     com.accelit.staffapp.contacts.DirectoryParserTest \

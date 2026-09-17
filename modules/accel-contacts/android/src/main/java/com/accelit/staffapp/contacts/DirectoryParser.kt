@@ -11,10 +11,10 @@ object DirectoryParser {
     private val CONTACT_TYPES = setOf("client_contact", "general_contact")
 
     private class Builder(val type: String, row: JSONObject) {
-        val given = text(row, "fname")
-        val family = text(row, "sname")
-        val displayName = text(row, "displayname")
-        val clientName = text(row, "client_name")
+        val given = DirectoryParser.text(row, "fname")
+        val family = DirectoryParser.text(row, "sname")
+        val displayName = DirectoryParser.text(row, "displayname")
+        val clientName = DirectoryParser.text(row, "client_name")
         val phones = sortedSetOf<String>()
         val emails = sortedSetOf<String>()
     }
