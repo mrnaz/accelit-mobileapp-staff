@@ -103,8 +103,11 @@ class ContactsStore(private val resolver: ContentResolver) {
             val id = update.rawContactId.toString()
             val data = dataValues(update.entry)
 
-            // update.rawContactId came out of listOwned(), which is scoped to
-            // our account; the final statement re-checks ownership regardless.
+            // The Data delete and inserts below are keyed by rawContactId, which
+            // came out of listOwned() (scoped to our account), and dataUri
+            // carries our account parameters so the provider appends the
+            // account to their selection; the closing raw-contact update
+            // re-checks ownership in its own selection.
             add(2 + data.size) {
                 listOf(
                     ContentProviderOperation.newDelete(dataUri)

@@ -30,6 +30,11 @@ class AccelContactsModule : Module() {
 
             try {
                 ContactsStore(context.contentResolver).ensureVisible()
+                // Clears any status left over from a previous enable/disable
+                // cycle, so re-enabling after the account was removed
+                // externally cannot show a stale success over an empty
+                // directory.
+                SessionStore(context).resetSyncState()
                 SessionStore(context).enabled = true
                 SyncScheduler.schedulePeriodic(context)
                 SyncScheduler.syncNow(context)
@@ -37,9 +42,25 @@ class AccelContactsModule : Module() {
                 // Enabling is all-or-nothing: a failure here must not leave an
                 // orphaned system account behind a feature that reads as off,
                 // but an account that pre-dated this call is not ours to remove.
-                SyncScheduler.cancelAll(context)
+                // The switch is turned off first, and each remaining cleanup
+                // step is isolated in its own try/catch, so a step that throws
+                // can neither skip the others nor replace the original
+                // exception below.
                 SessionStore(context).enabled = false
-                if (createdAccount) AccelAccount.remove(context)
+
+                try {
+                    SyncScheduler.cancelAll(context)
+                } catch (cancelError: Exception) {
+                    android.util.Log.w("AccelContacts", "enable() rollback: cancelAll failed", cancelError)
+                }
+
+                if (createdAccount) {
+                    try {
+                        AccelAccount.remove(context)
+                    } catch (removeError: Exception) {
+                        android.util.Log.w("AccelContacts", "enable() rollback: account remove failed", removeError)
+                    }
+                }
 
                 throw e
             }

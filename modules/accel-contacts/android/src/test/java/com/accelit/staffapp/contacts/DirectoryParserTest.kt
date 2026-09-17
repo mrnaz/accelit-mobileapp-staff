@@ -70,4 +70,16 @@ class DirectoryParserTest {
         assertEquals(64, a.hash.length)
         assertNotEquals(a.hash, moved.hash)
     }
+
+    @Test fun hashSeesCharactersMovingAcrossFields() {
+        val split = DirectoryEntry("contact:1", "Pat", "Smith", "Pat Smith", null, listOf("1"), emptyList())
+        val merged = split.copy(given = "PatSmith", family = "")
+
+        assertNotEquals("an edit that only moves characters across a field boundary must change the hash", split.hash, merged.hash)
+
+        val onePhone = split.copy(phones = listOf("12", "3"))
+        val otherPhone = split.copy(phones = listOf("1", "23"))
+
+        assertNotEquals("list separators must stop numbers bleeding into each other", onePhone.hash, otherPhone.hash)
+    }
 }

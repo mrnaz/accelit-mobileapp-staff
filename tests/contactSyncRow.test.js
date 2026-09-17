@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const OFF = { enabled: false, hasPermission: false, accountExists: false, lastSuccessAt: null, lastError: null };
 
@@ -52,12 +52,16 @@ import ContactSyncRow from '../app/components/ContactSyncRow';
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 let host;
+let roots = [];
 
 const mount = async () => {
     host = document.createElement('div');
     document.body.appendChild(host);
 
-    await act(async () => { createRoot(host).render(<ContactSyncRow refreshKey={0} />); });
+    const root = createRoot(host);
+    roots.push({ root, host });
+
+    await act(async () => { root.render(<ContactSyncRow refreshKey={0} />); });
 };
 
 const toggle = async () => act(async () => { host.querySelector('input').click(); });
@@ -68,6 +72,14 @@ beforeEach(() => {
     mocks.turnOn.mockReset();
     mocks.turnOff.mockClear();
     mocks.openSettings.mockClear();
+});
+
+// A pending "look again shortly" timer (see ContactSyncRow) must not outlive
+// its test: unmounting runs the effect cleanup that clears it.
+afterEach(async () => {
+    await act(async () => { roots.forEach(({ root }) => root.unmount()); });
+    roots.forEach(({ host: h }) => h.remove());
+    roots = [];
 });
 
 describe('ContactSyncRow', () => {
@@ -136,5 +148,13 @@ describe('ContactSyncRow', () => {
         await mount();
 
         expect(host.textContent).toContain('error:auth');
+    });
+
+    it('warns when contacts permission has been revoked', async () => {
+        mocks.status = { ...OFF, enabled: true, hasPermission: false, accountExists: true, lastSuccessAt: Date.now() };
+        await mount();
+
+        expect(host.textContent).toContain('error:permission');
+        expect(host.textContent).not.toContain('Synced');
     });
 });

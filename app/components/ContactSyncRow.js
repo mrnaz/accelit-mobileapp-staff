@@ -60,14 +60,20 @@ export default function ContactSyncRow({ refreshKey }) {
 
     const on = status.enabled && status.accountExists;
 
+    // Permission can be revoked from system Settings without the switch ever
+    // being touched: the switch still reads on, so the caption must say why
+    // nothing is syncing, ahead of a stale success or a stale sync error.
+    const permissionRevoked = on && !status.hasPermission;
+
     let caption = 'Adds the directory to caller ID on this phone.';
 
     if (problem) caption = NOTES[problem] || NOTES.error;
+    else if (permissionRevoked) caption = errorText('permission');
     else if (on && status.lastError) caption = errorText(status.lastError);
     else if (on && status.lastSuccessAt) caption = `Synced ${moment(status.lastSuccessAt).fromNow()}`;
     else if (on) caption = 'Syncing…';
 
-    const warn = !!problem || (on && !!status.lastError);
+    const warn = !!problem || permissionRevoked || (on && !!status.lastError);
 
     const captionNode = (
         <Text style={[styles.caption, { color: warn ? colors.error : colors.textSecondary }]}>{caption}</Text>

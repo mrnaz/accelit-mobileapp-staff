@@ -371,8 +371,8 @@ data class DirectoryEntry(
     companion object {
         // Bump when the entry -> Data row mapping changes, to force a rewrite.
         private const val SCHEMA = "v1"
-        private const val FIELD_SEPARATOR = ""
-        private const val LIST_SEPARATOR = ""
+        private const val FIELD_SEPARATOR = "\u001f"
+        private const val LIST_SEPARATOR = "\u001e"
 
         fun sha256(text: String): String =
             MessageDigest.getInstance("SHA-256")
@@ -560,7 +560,7 @@ object DeletionGuard {
 - [ ] **Step 5: Run to verify pass**
 
 Run: `modules/accel-contacts/scripts/test-core.sh`
-Expected: `OK (17 tests)`.
+Expected: `OK (18 tests)`.
 
 - [ ] **Step 6: Commit**
 
