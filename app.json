@@ -22,6 +22,7 @@
     },
     "android": {
       "package": "com.accelit.staffapp",
+      "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#4b8fc8"
@@ -33,7 +34,8 @@
     },
     "plugins": [
       "expo-router",
-      "expo-font"
+      "expo-font",
+      "./modules/accel-contacts/app.plugin.js"
     ],
     "extra": {
       "router": {
