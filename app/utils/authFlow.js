@@ -1,11 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import api from '../services/api';
+import api, { API_BASE_URL } from '../services/api';
+import { onSessionStarted, onSessionEnded } from './contactSync';
 import { STORAGE_KEYS, ALL_AUTH_KEYS } from '../constants/storageKeys';
 
 export async function persistAuth(token, deviceToken) {
     await AsyncStorage.setItem(STORAGE_KEYS.token, token);
     api.setToken(token);
+    await onSessionStarted(token, API_BASE_URL);
 
     if (deviceToken) {
         await AsyncStorage.setItem(STORAGE_KEYS.mfaDeviceToken, deviceToken);
@@ -17,6 +19,7 @@ export async function clearAuth() {
     await AsyncStorage.multiRemove(ALL_AUTH_KEYS);
     api.setToken(null);
     api.setDeviceToken(null);
+    await onSessionEnded({ explicit: false });
 }
 
 // A login response is one of two shapes: a full token, or an OTP stub plus the

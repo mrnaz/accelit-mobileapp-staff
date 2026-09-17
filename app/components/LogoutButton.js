@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import Theme from '../context/ThemeContext';
 import api from '../services/api';
 import { clearAuth } from '../utils/authFlow';
+import { onSessionEnded } from '../utils/contactSync';
 import { clearStaffCache } from '../context/StaffContext';
 
 export default function LogoutButton({ onDone }) {
@@ -22,6 +23,9 @@ export default function LogoutButton({ onDone }) {
             // The token may already be dead. Clearing the device is what
             // matters, so a failed round trip should not strand the user.
         }
+
+        // Signing out takes the staff directory off the phone as well.
+        await onSessionEnded({ explicit: true });
 
         await clearAuth();
         await clearStaffCache();

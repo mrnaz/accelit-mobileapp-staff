@@ -5,6 +5,7 @@ import { ThemeProvider as NavigationThemeProvider, DarkTheme, DefaultTheme } fro
 import Theme from './context/ThemeContext';
 import { StaffProvider } from './context/StaffContext';
 import api from './services/api';
+import useContactSyncRefresh from './utils/useContactSyncRefresh';
 
 const { ThemeProvider } = Theme;
 
@@ -75,6 +76,8 @@ const RootLayoutInner = React.memo(function RootLayoutInner() {
             },
         };
     }, [mode, theme]);
+
+    useContactSyncRefresh(authenticated && !inAuthGroup);
 
     if (isChecking) return <View style={{ flex: 1, backgroundColor: theme.colors.background }} />;
 

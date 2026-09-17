@@ -3,8 +3,9 @@ import { router } from 'expo-router';
 import endpoints from '../constants/endpoints';
 import { STORAGE_KEYS, ALL_AUTH_KEYS } from '../constants/storageKeys';
 import { isIpRefusal, errorMessage } from '../utils/apiErrors';
+import { onSessionStarted, onSessionEnded } from '../utils/contactSync';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://app.accelit.online';
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://app.accelit.online';
 
 // The admin host. These routes are registered inside Route::domain($adminDomain),
 // so pointing at the client-portal host returns 404 for every one of them.
@@ -36,7 +37,11 @@ class ApiService {
             STORAGE_KEYS.mfaDeviceToken,
         ]);
 
-        if (token) this.setToken(token);
+        if (token) {
+            this.setToken(token);
+            // The hourly contact worker runs without JS and needs its own copy.
+            await onSessionStarted(token, API_BASE_URL);
+        }
         if (deviceToken) this.setDeviceToken(deviceToken);
 
         return token;
@@ -99,6 +104,9 @@ class ApiService {
         if (response.status === 401 && session) {
             await AsyncStorage.multiRemove(ALL_AUTH_KEYS);
             this.setToken(null);
+            // Expired, not signed out: the worker loses its token, the phone
+            // keeps the contacts it already has.
+            await onSessionEnded({ explicit: false });
             router.replace('/(auth)/login');
         }
 

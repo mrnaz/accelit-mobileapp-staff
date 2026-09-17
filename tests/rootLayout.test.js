@@ -75,6 +75,8 @@ vi.mock('../app/services/api', () => ({
     default: { restore: mocks.restore, me: mocks.me },
 }));
 
+vi.mock('../app/utils/useContactSyncRefresh', () => ({ default: () => {} }));
+
 import RootLayout from '../app/_layout';
 import { useStaff } from '../app/context/StaffContext';
 
