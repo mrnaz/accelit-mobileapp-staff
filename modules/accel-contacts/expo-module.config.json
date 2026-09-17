@@ -1,0 +1,6 @@
+{
+  "platforms": ["android"],
+  "android": {
+    "modules": ["com.accelit.staffapp.contacts.AccelContactsModule"]
+  }
+}

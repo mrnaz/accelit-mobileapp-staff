@@ -1,0 +1,25 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.accelit.staffapp.contacts'
+version = '1.0.0'
+
+android {
+  namespace "com.accelit.staffapp.contacts"
+  defaultConfig {
+    versionCode 1
+    versionName '1.0.0'
+  }
+}
+
+dependencies {
+  implementation "androidx.core:core-ktx:1.13.1"
+  implementation "androidx.work:work-runtime-ktx:2.9.1"
+  implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
+
+  // android.jar stubs org.json out in local unit tests; the parser needs the real thing.
+  testImplementation "junit:junit:4.13.2"
+  testImplementation "org.json:json:20240303"
+}

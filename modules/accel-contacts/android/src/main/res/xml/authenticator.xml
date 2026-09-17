@@ -1,0 +1,5 @@
+<account-authenticator xmlns:android="http://schemas.android.com/apk/res/android"
+  android:accountType="com.accelit.staffapp"
+  android:icon="@drawable/accel_contacts_account"
+  android:smallIcon="@drawable/accel_contacts_account"
+  android:label="@string/accel_contacts_account_label" />
