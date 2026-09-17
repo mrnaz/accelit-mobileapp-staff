@@ -9,8 +9,10 @@ import SearchField from '../components/SearchField';
 import SectionLabel from '../components/SectionLabel';
 import PersonRow from '../components/PersonRow';
 import ContactSheet from '../components/ContactSheet';
+import ContactSyncRow from '../components/ContactSyncRow';
 import useDebounced from '../utils/useDebounced';
 import { toPerson, sectionize, matches } from '../utils/addressBook';
+import { requestSync } from '../utils/contactSync';
 
 // GET /api/address-book returns a BARE ARRAY of three interleaved row types —
 // client_contact, general_contact and client — with no pagination and no
@@ -30,13 +32,21 @@ export default function AddressBook() {
     const [error, setError] = useState(null);
     const [search, setSearch] = useState('');
     const [sheetPerson, setSheetPerson] = useState(null);
+    const [syncTick, setSyncTick] = useState(0);
 
     const listRef = useRef(null);
 
     const term = useDebounced(search, 200).trim().toLowerCase();
 
     const load = useCallback(async ({ refresh = false } = {}) => {
-        if (refresh) setRefreshing(true); else setLoading(true);
+        if (refresh) {
+            setRefreshing(true);
+            // Pulling to refresh is the user asking for fresh contacts, on the
+            // phone as much as on this screen. A no-op while the toggle is off.
+            requestSync().then(() => setSyncTick((tick) => tick + 1));
+        } else {
+            setLoading(true);
+        }
         setError(null);
 
         try {
@@ -116,6 +126,7 @@ export default function AddressBook() {
         <View style={styles.screen}>
             <View style={styles.controls}>
                 <SearchField value={search} onChangeText={setSearch} placeholder="Name, company, number" />
+                <ContactSyncRow refreshKey={syncTick} />
             </View>
 
             <View style={styles.body}>
