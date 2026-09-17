@@ -37,5 +37,8 @@ yarn-error.*
 *.tsbuildinfo
 
 
-ios/
-android/
+/ios/
+/android/
+
+# accel-contacts standalone Kotlin test build
+modules/accel-contacts/.core-test/
