@@ -42,3 +42,6 @@ yarn-error.*
 
 # accel-contacts standalone Kotlin test build
 modules/accel-contacts/.core-test/
+
+# accel-contacts local Gradle output
+modules/accel-contacts/android/build/
