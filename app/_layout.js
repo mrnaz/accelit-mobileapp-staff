@@ -7,6 +7,7 @@ import { StaffProvider } from './context/StaffContext';
 import * as session from './services/session';
 import { routeFor } from './utils/sessionRules';
 import useContactSyncRefresh from './utils/useContactSyncRefresh';
+import useAppLock from './utils/appLock';
 
 const { ThemeProvider } = Theme;
 
@@ -77,6 +78,7 @@ const RootLayoutInner = React.memo(function RootLayoutInner() {
         };
     }, [mode, theme]);
 
+    useAppLock();
     useContactSyncRefresh(authenticated && !inAuthGroup);
 
     if (isChecking) return <View style={{ flex: 1, backgroundColor: theme.colors.background }} />;

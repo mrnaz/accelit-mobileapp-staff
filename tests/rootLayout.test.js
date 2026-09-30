@@ -78,6 +78,7 @@ vi.mock('../app/services/api', () => ({
 vi.mock('../app/services/session', () => ({ status: mocks.sessionStatus }));
 
 vi.mock('../app/utils/useContactSyncRefresh', () => ({ default: () => {} }));
+vi.mock('../app/utils/appLock', () => ({ default: () => {} }));
 
 import RootLayout from '../app/_layout';
 import { useStaff } from '../app/context/StaffContext';
