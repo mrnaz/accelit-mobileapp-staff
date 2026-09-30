@@ -14,8 +14,7 @@ const ERROR_TEXT = {
     provider: 'Last sync failed. Will retry.',
 };
 
-// restore() runs on every navigation; native only needs telling when the
-// token actually changes.
+// Native only needs telling when the token actually changes.
 let pushedToken = null;
 
 async function quietly(label, work) {

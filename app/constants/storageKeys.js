@@ -1,7 +1,4 @@
 export const STORAGE_KEYS = {
-    // Pre-1.1.0 home of the full token. Task 7 removes this alias; until then
-    // api.js still reads it.
-    token: 'authToken',
     // 64-char device token from check-otp's remember_device. Suppresses MFA for
     // three weeks. Sent back as the X-MFA-Device-Token header.
     mfaDeviceToken: 'mfaDeviceToken',
@@ -25,7 +22,7 @@ export const STORAGE_KEYS = {
 // requireAuthentication, so only a biometric match reads it back.
 export const SECURE_SESSION_KEY = 'staffAppSession';
 
-// Everything cleared on logout and on any 401.
-export const ALL_AUTH_KEYS = [STORAGE_KEYS.token, STORAGE_KEYS.mfaDeviceToken];
+// Cleared on sign-out and on a 401 of a request that carried a token.
+export const ALL_AUTH_KEYS = [STORAGE_KEYS.mfaDeviceToken];
 
 export default STORAGE_KEYS;

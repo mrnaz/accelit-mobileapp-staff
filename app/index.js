@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Redirect } from 'expo-router';
-import api from './services/api';
+import * as session from './services/session';
+import { routeFor } from './utils/sessionRules';
 
 export default function Index() {
     const [target, setTarget] = useState(null);
 
     useEffect(() => {
         (async () => {
-            const token = await api.restore();
+            const status = await session.status();
 
-            setTarget(token ? '/(main)' : '/(auth)/login');
+            setTarget(routeFor({ status, inAuthGroup: false }) ?? '/(main)');
         })();
     }, []);
 

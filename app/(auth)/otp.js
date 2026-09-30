@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
 import api from '../services/api';
-import { persistAuth, clearAuth } from '../utils/authFlow';
+import { completeSignIn, abandonOtp } from '../utils/authFlow';
 import { sanitizeOtp, isCompleteOtp } from '../utils/otp';
 import t from '../constants/authTheme';
 
@@ -54,14 +54,14 @@ export default function OtpScreen() {
                 return;
             }
 
-            await persistAuth(response.token, response.device_token);
+            await completeSignIn(response, params.email);
             router.replace('/(main)');
         } catch (err) {
             setError(err.message);
         } finally {
             setBusy(false);
         }
-    }, [busy, code, remember]);
+    }, [busy, code, remember, params.email]);
 
     // Auto-verify as soon as the sixth digit lands, whether typed, pasted or
     // filled in by the OS from an SMS/keychain suggestion.
@@ -88,8 +88,8 @@ export default function OtpScreen() {
         }
     }, [switching, mfaType]);
 
-    const cancel = useCallback(async () => {
-        await clearAuth();
+    const cancel = useCallback(() => {
+        abandonOtp();
         router.replace('/(auth)/login');
     }, []);
 

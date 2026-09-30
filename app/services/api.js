@@ -3,7 +3,8 @@ import { router } from 'expo-router';
 import endpoints from '../constants/endpoints';
 import { STORAGE_KEYS, ALL_AUTH_KEYS } from '../constants/storageKeys';
 import { isIpRefusal, errorMessage } from '../utils/apiErrors';
-import { onSessionStarted, onSessionEnded } from '../utils/contactSync';
+import { onSessionEnded } from '../utils/contactSync';
+import * as session from './session';
 
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://app.accelit.online';
 
@@ -11,40 +12,32 @@ export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://app.acce
 // so pointing at the client-portal host returns 404 for every one of them.
 const API_ROOT = `${API_BASE_URL}/api`;
 
+// Tells /login and /check-otp this is the staff app, which gets its own kind
+// of token: a 30-day session that a web sign-in leaves alone, plus an
+// address-book-only token for contact sync. Every other route ignores it.
+export const CLIENT_HEADER = { 'X-Accel-Client': 'staff-app' };
+
 class ApiService {
     constructor() {
-        this.token = null;
+        // The stub from POST /login when MFA is on. It can only exchange a
+        // code, so it lives here in memory and nowhere else. The session token
+        // is session.js's.
+        this.otpToken = null;
         this.deviceToken = null;
     }
 
-    setToken(token) {
-        this.token = token || null;
+    setOtpToken(otpToken) {
+        this.otpToken = otpToken || null;
     }
 
     setDeviceToken(deviceToken) {
         this.deviceToken = deviceToken || null;
     }
 
-    // Loads what the device has persisted. Only a stored value replaces what
-    // is in memory: mid-login the in-memory token is the OTP stub from
-    // POST /login, which is never persisted, and the root layout calls this
-    // on every navigation, including login -> otp. Clearing on an empty
-    // store here would strip that stub before the code is submitted. Logout
-    // and the 401 handler clear the token explicitly instead.
-    async restore() {
-        const [[, token], [, deviceToken]] = await AsyncStorage.multiGet([
-            STORAGE_KEYS.token,
-            STORAGE_KEYS.mfaDeviceToken,
-        ]);
-
-        if (token) {
-            this.setToken(token);
-            // The hourly contact worker runs without JS and needs its own copy.
-            await onSessionStarted(token, API_BASE_URL);
-        }
-        if (deviceToken) this.setDeviceToken(deviceToken);
-
-        return token;
+    // The remembered-device token only matters to POST /login, so the sign-in
+    // screen loads it before offering the form.
+    async loadDeviceToken() {
+        this.setDeviceToken(await AsyncStorage.getItem(STORAGE_KEYS.mfaDeviceToken));
     }
 
     async request(path, { method = 'GET', body, query, auth = true } = {}) {
@@ -59,10 +52,13 @@ class ApiService {
             });
         }
 
-        const headers = { Accept: 'application/json' };
+        const headers = { Accept: 'application/json', ...CLIENT_HEADER };
+        // Mid-MFA the stub is the only credential; otherwise the session's.
+        const sessionToken = this.otpToken ? null : session.currentToken();
+        const bearer = auth ? this.otpToken || sessionToken : null;
 
         if (body) headers['Content-Type'] = 'application/json';
-        if (auth && this.token) headers.Authorization = `Bearer ${this.token}`;
+        if (bearer) headers.Authorization = `Bearer ${bearer}`;
         if (this.deviceToken) headers['X-MFA-Device-Token'] = this.deviceToken;
 
         let response;
@@ -93,21 +89,31 @@ class ApiService {
 
         if (response.ok) return parsed;
 
-        return this.handleFailure(response, parsed, { session: auth && !!this.token });
+        return this.handleFailure(response, parsed, {
+            sentSession: !!bearer && bearer === sessionToken,
+            sentStub: !!bearer && bearer === this.otpToken,
+        });
     }
 
-    // `session` says whether the request carried a session token. Only then
-    // does a 401 mean the session is over: the login route answers a wrong
-    // password with 401 as well, and bouncing to the login screen on that
-    // remounts the form and loses the error before anyone reads it.
-    async handleFailure(response, body, { session = true } = {}) {
-        if (response.status === 401 && session) {
+    // Only a 401 on a request that carried a token means that token is dead.
+    // The login route answers a wrong password with 401 as well, and bouncing
+    // to the login screen on that remounts the form and loses the error before
+    // anyone reads it.
+    async handleFailure(response, body, { sentSession = false, sentStub = false } = {}) {
+        if (response.status === 401 && (sentSession || sentStub)) {
             await AsyncStorage.multiRemove(ALL_AUTH_KEYS);
-            this.setToken(null);
-            // Expired, not signed out: the worker loses its token, the phone
-            // keeps the contacts it already has.
-            await onSessionEnded({ explicit: false });
-            router.replace('/(auth)/login');
+            this.setOtpToken(null);
+
+            if (sentSession) {
+                // Expired or revoked. The stored copy is as dead as this one,
+                // so it goes too, or every open would ask for Face ID for it.
+                await session.end();
+                // Not signed out: the worker loses its token, the phone keeps
+                // the contacts it already has.
+                await onSessionEnded({ explicit: false });
+            }
+
+            router.replace(sentSession ? '/(auth)/login?reason=expired' : '/(auth)/login');
         }
 
         // Off the VPN. Sending the user to the login screen would have them

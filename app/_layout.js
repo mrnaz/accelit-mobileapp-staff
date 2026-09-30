@@ -4,7 +4,8 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { ThemeProvider as NavigationThemeProvider, DarkTheme, DefaultTheme } from '@react-navigation/native';
 import Theme from './context/ThemeContext';
 import { StaffProvider } from './context/StaffContext';
-import api from './services/api';
+import * as session from './services/session';
+import { routeFor } from './utils/sessionRules';
 import useContactSyncRefresh from './utils/useContactSyncRefresh';
 
 const { ThemeProvider } = Theme;
@@ -24,19 +25,18 @@ const useProtectedRoute = () => {
             try {
                 if (segments.length === 0) return;
 
-                // Restore the token on every navigation rather than only on the
-                // index route: booting straight into a detail screen via a deep
-                // link would otherwise leave the client unauthenticated and 401
-                // every request.
-                const token = await api.restore();
+                // Ask on every navigation rather than only on the index route:
+                // booting straight into a detail screen via a deep link must
+                // still land on unlock or sign-in first.
+                const status = await session.status();
 
-                setAuthenticated(!!token);
+                setAuthenticated(status === 'unlocked');
 
-                if (!token && !inAuthGroup) {
-                    router.replace('/(auth)/login');
-                }
-                // Deliberately no redirect out of (auth) for an authenticated
-                // user — the OTP screen lives there and is reached mid-login.
+                // Never out of (auth): the code step and "Sign in with password"
+                // both live there on purpose.
+                const target = routeFor({ status, inAuthGroup });
+
+                if (target) router.replace(target);
             } catch (error) {
                 console.error('Auth check error', error);
             } finally {

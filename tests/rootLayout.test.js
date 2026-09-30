@@ -27,11 +27,11 @@ const mocks = vi.hoisted(() => {
 
     return {
         nav,
-        token: null,
+        status: 'none',
         profile: null,
         screen: null,
         replace: vi.fn(),
-        restore: vi.fn(),
+        sessionStatus: vi.fn(),
         me: vi.fn(),
     };
 });
@@ -72,8 +72,10 @@ vi.mock('@react-navigation/native', () => ({
 }));
 
 vi.mock('../app/services/api', () => ({
-    default: { restore: mocks.restore, me: mocks.me },
+    default: { me: mocks.me },
 }));
+
+vi.mock('../app/services/session', () => ({ status: mocks.sessionStatus }));
 
 vi.mock('../app/utils/useContactSyncRefresh', () => ({ default: () => {} }));
 
@@ -93,7 +95,7 @@ let root;
 let caught;
 
 const settle = async () => {
-    // restore() → setIsChecking → provider effect → me() → setStaff is a chain
+    // status() → setIsChecking → provider effect → me() → setStaff is a chain
     // of microtasks, so give it a few turns of the loop.
     for (let i = 0; i < 3; i += 1) {
         // eslint-disable-next-line no-await-in-loop
@@ -106,10 +108,10 @@ const mount = async () => {
     await settle();
 };
 
-// What api.restore() and api.me() will answer, then the navigation that
+// What session.status() and api.me() will answer, then the navigation that
 // triggers the root layout's auth check.
-const navigate = async ({ segments, token, profile }) => {
-    mocks.token = token;
+const navigate = async ({ segments, status, profile }) => {
+    mocks.status = status;
     mocks.profile = profile;
 
     await act(async () => { mocks.nav.set(segments); });
@@ -121,7 +123,7 @@ beforeEach(() => {
     caught = null;
     mocks.nav.segments = [];
     mocks.screen = () => React.createElement(Probe);
-    mocks.restore.mockImplementation(async () => mocks.token);
+    mocks.sessionStatus.mockImplementation(async () => mocks.status);
     mocks.me.mockImplementation(async () => mocks.profile);
 
     container = document.createElement('div');
@@ -137,7 +139,7 @@ afterEach(async () => {
 describe('RootLayout staff profile', () => {
     it('lets a detail screen outside (main) read the staff profile', async () => {
         await mount();
-        await navigate({ segments: ['client', '[id]'], token: 'tok', profile: { fname: 'Jane' } });
+        await navigate({ segments: ['client', '[id]'], status: 'unlocked', profile: { fname: 'Jane' } });
 
         expect(caught).toBeNull();
         expect(container.textContent).toBe('Jane');
@@ -145,7 +147,7 @@ describe('RootLayout staff profile', () => {
 
     it('does not fetch the profile while signed out on an auth screen', async () => {
         await mount();
-        await navigate({ segments: ['(auth)', 'login'], token: null, profile: null });
+        await navigate({ segments: ['(auth)', 'login'], status: 'none', profile: null });
 
         expect(caught).toBeNull();
         expect(mocks.me).not.toHaveBeenCalled();
@@ -155,10 +157,10 @@ describe('RootLayout staff profile', () => {
 
     it('fetches the profile once a login lands in (main)', async () => {
         await mount();
-        await navigate({ segments: ['(auth)', 'otp'], token: null, profile: null });
+        await navigate({ segments: ['(auth)', 'otp'], status: 'none', profile: null });
         expect(mocks.me).not.toHaveBeenCalled();
 
-        await navigate({ segments: ['(main)'], token: 'tok', profile: { fname: 'Jane' } });
+        await navigate({ segments: ['(main)'], status: 'unlocked', profile: { fname: 'Jane' } });
 
         expect(caught).toBeNull();
         expect(mocks.me).toHaveBeenCalledTimes(1);
@@ -167,13 +169,28 @@ describe('RootLayout staff profile', () => {
 
     it('forgets the profile when the session ends', async () => {
         await mount();
-        await navigate({ segments: ['(main)'], token: 'tok', profile: { fname: 'Jane' } });
+        await navigate({ segments: ['(main)'], status: 'unlocked', profile: { fname: 'Jane' } });
         expect(container.textContent).toBe('Jane');
 
-        await navigate({ segments: ['(auth)', 'login'], token: null, profile: null });
+        await navigate({ segments: ['(auth)', 'login'], status: 'none', profile: null });
 
         expect(caught).toBeNull();
         expect(mocks.me).toHaveBeenCalledTimes(1);
         expect(container.textContent).toBe('none');
+    });
+
+    it('sends a locked session outside (auth) to the unlock screen', async () => {
+        await mount();
+        await navigate({ segments: ['client', '[id]'], status: 'locked', profile: null });
+
+        expect(mocks.replace).toHaveBeenCalledWith('/(auth)/unlock');
+        expect(mocks.me).not.toHaveBeenCalled();
+    });
+
+    it('leaves a locked session on the login screen it chose', async () => {
+        await mount();
+        await navigate({ segments: ['(auth)', 'login'], status: 'locked', profile: null });
+
+        expect(mocks.replace).not.toHaveBeenCalled();
     });
 });

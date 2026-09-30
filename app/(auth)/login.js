@@ -28,7 +28,7 @@ export default function LoginScreen() {
 
         (async () => {
             try {
-                await api.restore();
+                await api.loadDeviceToken();
 
                 const { allowed } = await api.ipCheck();
 
@@ -63,7 +63,7 @@ export default function LoginScreen() {
         try {
             const response = await api.login(email.trim(), password);
 
-            await routePostAuth(response);
+            await routePostAuth(response, email.trim());
         } catch (err) {
             if (err.status === 403 && isIpRefusal(err.body)) return; // routed to /vpn
 
