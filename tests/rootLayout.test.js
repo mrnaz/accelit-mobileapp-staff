@@ -30,6 +30,7 @@ const mocks = vi.hoisted(() => {
         status: 'none',
         profile: null,
         screen: null,
+        stackProps: null,
         replace: vi.fn(),
         sessionStatus: vi.fn(),
         me: vi.fn(),
@@ -56,7 +57,11 @@ vi.mock('expo-router', async () => {
     const R = await import('react');
 
     return {
-        Stack: () => (mocks.screen ? mocks.screen() : null),
+        Stack: (props) => {
+            mocks.stackProps = props;
+
+            return mocks.screen ? mocks.screen() : null;
+        },
         useRouter: () => ({ replace: mocks.replace }),
         useSegments: () => R.useSyncExternalStore(mocks.nav.subscribe, mocks.nav.get),
         router: { replace: mocks.replace, push: vi.fn() },
@@ -123,6 +128,7 @@ beforeEach(() => {
     vi.clearAllMocks();
     caught = null;
     mocks.nav.segments = [];
+    mocks.stackProps = null;
     mocks.screen = () => React.createElement(Probe);
     mocks.sessionStatus.mockImplementation(async () => mocks.status);
     mocks.me.mockImplementation(async () => mocks.profile);
@@ -193,5 +199,33 @@ describe('RootLayout staff profile', () => {
         await navigate({ segments: ['(auth)', 'login'], status: 'locked', profile: null });
 
         expect(mocks.replace).not.toHaveBeenCalled();
+    });
+});
+
+// A lock from a detail screen leaves that screen beneath (auth) in the root
+// Stack. The iOS edge swipe must not pop the unlock screen off it.
+describe('RootLayout stack', () => {
+    // What the root Stack's screenOptions give a route of this name.
+    const optionsFor = (name) => {
+        const { screenOptions } = mocks.stackProps;
+
+        return typeof screenOptions === 'function' ? screenOptions({ route: { name } }) : screenOptions;
+    };
+
+    it('keeps the (auth) group from being swiped away', async () => {
+        await mount();
+        await navigate({ segments: ['(auth)', 'unlock'], status: 'locked', profile: null });
+
+        expect(optionsFor('(auth)')).toMatchObject({ headerShown: false, gestureEnabled: false });
+    });
+
+    it('leaves the swipe alone everywhere else', async () => {
+        await mount();
+        await navigate({ segments: ['(main)'], status: 'unlocked', profile: { fname: 'Jane' } });
+
+        for (const name of ['index', '(main)', 'client', 'ticket', 'onboarding']) {
+            expect(optionsFor(name)).toMatchObject({ headerShown: false });
+            expect(optionsFor(name).gestureEnabled).toBeUndefined();
+        }
     });
 });

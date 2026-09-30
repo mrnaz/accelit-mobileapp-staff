@@ -13,6 +13,14 @@ const { ThemeProvider } = Theme;
 
 const STACK_OPTIONS = { headerShown: false };
 
+// A lock from a detail screen leaves that screen beneath (auth) in this Stack,
+// so the iOS edge swipe would pop the unlock screen and show the app behind
+// it. A function rather than a <Stack.Screen name="(auth)"> child: a listed
+// child moves to the front of the Stack and would become its first route.
+const AUTH_OPTIONS = { ...STACK_OPTIONS, gestureEnabled: false };
+
+const stackOptions = ({ route }) => (route.name === '(auth)' ? AUTH_OPTIONS : STACK_OPTIONS);
+
 const useProtectedRoute = () => {
     const segments = useSegments();
     const router = useRouter();
@@ -92,7 +100,7 @@ const RootLayoutInner = React.memo(function RootLayoutInner() {
     return (
         <NavigationThemeProvider value={navigationTheme}>
             <StaffProvider enabled={authenticated && !inAuthGroup}>
-                <Stack screenOptions={STACK_OPTIONS} />
+                <Stack screenOptions={stackOptions} />
             </StaffProvider>
         </NavigationThemeProvider>
     );

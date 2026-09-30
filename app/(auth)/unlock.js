@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Image } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Image, BackHandler } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import * as session from '../services/session';
 import t from '../constants/authTheme';
 
@@ -48,6 +48,16 @@ export default function UnlockScreen() {
         }
         // 'cancelled': they closed the prompt on purpose. The button stays.
     }, []);
+
+    // A lock from a detail screen leaves the app's screens under this one, so
+    // Android back would pop straight past the lock. Swallow it while this
+    // screen is showing; once "Sign in with password" pushes login above it,
+    // this blurs and back works there as usual.
+    useFocusEffect(useCallback(() => {
+        const subscription = BackHandler.addEventListener('hardwareBackPress', () => true);
+
+        return () => subscription.remove();
+    }, []));
 
     useEffect(() => {
         (async () => {

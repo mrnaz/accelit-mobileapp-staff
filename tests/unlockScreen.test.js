@@ -3,13 +3,43 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const mocks = vi.hoisted(() => ({
-    unlock: vi.fn(),
-    lastEmail: vi.fn(async () => 'jo@accelit.com.au'),
-    label: vi.fn(async () => 'Face ID'),
-    replace: vi.fn(),
-    push: vi.fn(),
-}));
+const mocks = vi.hoisted(() => {
+    // Focus is a subscription in expo-router: the screen blurs when login is
+    // pushed above it and focuses again when that is popped. Tests flip it by
+    // hand.
+    const listeners = new Set();
+    const focus = {
+        focused: true,
+        get: () => focus.focused,
+        set: (focused) => {
+            focus.focused = focused;
+            listeners.forEach((notify) => notify());
+        },
+        subscribe: (notify) => {
+            listeners.add(notify);
+
+            return () => listeners.delete(notify);
+        },
+    };
+
+    // Live hardware-back handlers, newest last, as React Native keeps them.
+    const backHandlers = [];
+
+    return {
+        focus,
+        backHandlers,
+        addBackListener: vi.fn((event, handler) => {
+            backHandlers.push(handler);
+
+            return { remove: () => backHandlers.splice(backHandlers.indexOf(handler), 1) };
+        }),
+        unlock: vi.fn(),
+        lastEmail: vi.fn(async () => 'jo@accelit.com.au'),
+        label: vi.fn(async () => 'Face ID'),
+        replace: vi.fn(),
+        push: vi.fn(),
+    };
+});
 
 vi.mock('react-native', async () => {
     const R = await import('react');
@@ -22,6 +52,7 @@ vi.mock('react-native', async () => {
         ActivityIndicator: el('progress'),
         TouchableOpacity: el('button', (p) => ({ onClick: p.onPress, disabled: p.disabled })),
         StyleSheet: { create: (s) => s },
+        BackHandler: { addEventListener: mocks.addBackListener },
     };
 });
 
@@ -33,7 +64,20 @@ vi.mock('react-native-safe-area-context', async () => {
 
 vi.mock('@expo/vector-icons', () => ({ Ionicons: () => null }));
 vi.mock('expo-status-bar', () => ({ StatusBar: () => null }));
-vi.mock('expo-router', () => ({ router: { replace: mocks.replace, push: mocks.push } }));
+// useFocusEffect runs its callback while the screen is focused and the
+// callback's cleanup on blur or unmount.
+vi.mock('expo-router', async () => {
+    const R = await import('react');
+
+    return {
+        router: { replace: mocks.replace, push: mocks.push },
+        useFocusEffect: (effect) => {
+            const focused = R.useSyncExternalStore(mocks.focus.subscribe, mocks.focus.get);
+
+            R.useEffect(() => (focused ? effect() : undefined), [focused, effect]);
+        },
+    };
+});
 vi.mock('../app/services/session', () => ({
     unlock: mocks.unlock,
     lastEmail: mocks.lastEmail,
@@ -66,8 +110,18 @@ const tap = async (text) => {
     await settle();
 };
 
+// React Native asks the newest handler first and stops at the first true;
+// false means the press falls through to navigation's own back.
+const pressBack = () => [...mocks.backHandlers].reverse().some((handler) => handler() === true);
+
+const setFocused = async (focused) => {
+    await act(async () => { mocks.focus.set(focused); });
+};
+
 beforeEach(() => {
     vi.clearAllMocks();
+    mocks.focus.focused = true;
+    mocks.backHandlers.length = 0;
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -162,5 +216,41 @@ describe('UnlockScreen', () => {
         await tap('Sign in with password');
 
         expect(mocks.push).toHaveBeenCalledWith('/(auth)/login');
+    });
+});
+
+// A lock from a detail screen leaves the app's screens under the unlock screen,
+// so a back press that reached navigation would pop straight past the lock.
+describe('UnlockScreen back button', () => {
+    beforeEach(() => {
+        mocks.unlock.mockResolvedValue('cancelled');
+    });
+
+    it('swallows Android back while it is showing', async () => {
+        await mount();
+
+        expect(mocks.addBackListener).toHaveBeenCalledWith('hardwareBackPress', expect.any(Function));
+        expect(pressBack()).toBe(true);
+    });
+
+    it('lets back work on the login screen pushed above it, and takes over again on return', async () => {
+        await mount();
+
+        await setFocused(false);
+        expect(mocks.backHandlers).toHaveLength(0);
+        expect(pressBack()).toBe(false);
+
+        await setFocused(true);
+        expect(mocks.backHandlers).toHaveLength(1);
+        expect(pressBack()).toBe(true);
+    });
+
+    it('stops listening once it is gone', async () => {
+        await mount();
+        expect(mocks.backHandlers).toHaveLength(1);
+
+        await act(async () => { root.unmount(); });
+
+        expect(mocks.backHandlers).toHaveLength(0);
     });
 });
