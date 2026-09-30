@@ -12,6 +12,7 @@ const env = vi.hoisted(() => {
         readError: null,
         readNull: false,
         writeError: null,
+        legacyReadError: null,
         types: [2],
     };
 
@@ -35,7 +36,17 @@ vi.mock('react-native', () => ({ Platform: { get OS() { return env.os; } } }));
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
     default: {
-        getItem: async (key) => env.async.get(key) ?? null,
+        getItem: async (key) => {
+            // Fails once, then behaves: a storage hiccup, not a broken phone.
+            if (key === 'authToken' && env.legacyReadError) {
+                const error = env.legacyReadError;
+                env.legacyReadError = null;
+
+                throw error;
+            }
+
+            return env.async.get(key) ?? null;
+        },
         setItem: async (key, value) => { env.async.set(key, value); },
         removeItem: async (key) => { env.async.delete(key); },
         multiRemove: async (keys) => { keys.forEach((key) => env.async.delete(key)); },
@@ -82,6 +93,7 @@ beforeEach(async () => {
     env.readError = null;
     env.readNull = false;
     env.writeError = null;
+    env.legacyReadError = null;
     env.types = [2];
     vi.clearAllMocks();
     await load();
@@ -229,6 +241,13 @@ describe('upgrading from 1.0.0', () => {
         await session.status(BEFORE_EXPIRY);
 
         expect(env.onSessionEnded).not.toHaveBeenCalled();
+    });
+
+    it('still answers when the cleanup fails, now and on every later check', async () => {
+        env.legacyReadError = new Error('storage unavailable');
+
+        await expect(session.status(BEFORE_EXPIRY)).resolves.toBe('none');
+        await expect(session.status(BEFORE_EXPIRY)).resolves.toBe('none');
     });
 });
 

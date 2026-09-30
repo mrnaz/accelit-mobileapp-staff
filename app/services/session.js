@@ -128,14 +128,20 @@ async function readMarker() {
 }
 
 // Builds before 1.1.0 kept the full token in plain AsyncStorage and gave the
-// contact worker a copy. Both go, the first time this build asks.
+// contact worker a copy. Both go, the first time this build asks. A failure is
+// logged and counts as done for this run: status() must always answer, and a
+// leftover token is a dead one by now that the next launch tries to clear again.
 function migrateLegacy() {
     if (!migration) {
         migration = (async () => {
-            if (!(await AsyncStorage.getItem(STORAGE_KEYS.legacyToken))) return;
+            try {
+                if (!(await AsyncStorage.getItem(STORAGE_KEYS.legacyToken))) return;
 
-            await AsyncStorage.removeItem(STORAGE_KEYS.legacyToken);
-            await onSessionEnded({ explicit: false });
+                await AsyncStorage.removeItem(STORAGE_KEYS.legacyToken);
+                await onSessionEnded({ explicit: false });
+            } catch (error) {
+                console.warn('session: could not clear the pre-1.1.0 token', error);
+            }
         })();
     }
 
