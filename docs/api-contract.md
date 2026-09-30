@@ -16,15 +16,27 @@ representative, not literal captures.
   personal-access tokens (`$user->createToken(...)->plainTextToken`), not
   SPA cookie sessions, so a bearer header is all that's needed — no CSRF
   cookie dance.
-- **Token abilities**: every fully-authenticated token is minted with
-  abilities `['*']` (`AuthController::login`/`checkOTP`, via
-  `createToken('auth_token')` with no explicit ability list, which defaults to
-  `['*']`). The one exception is the short-lived OTP-stage token
-  (`createToken('token', ['otp'])`), which only satisfies routes gated
-  `token.can:otp` (i.e. `POST /api/check-otp` and `POST /api/switch-mfa-method`)
-  and will be rejected by every other endpoint in this document.
-- **Token TTL**: `config('sanctum.expiration') = 600` minutes (`config/sanctum.php:49`).
-  After that the token simply stops authenticating — same 401 as an invalid token.
+- **Token abilities**: a web sign-in mints `auth_token` with abilities `['*']`.
+  A staff-app sign-in (request header `X-Accel-Client: staff-app` on
+  `/login` or `/check-otp`) mints two: `staff_app` with `['*']`, and
+  `staff_app_contacts` with `['address-book']`, which only satisfies
+  `GET /api/address-book` (`token.can:address-book`) and gets a 403 everywhere
+  else, broadcasting auth included. The OTP-stage token
+  (`createToken('token', ['otp'])`) only satisfies routes gated
+  `token.can:otp` (`POST /api/check-otp`, `POST /api/switch-mfa-method`) and is
+  deleted once its code is accepted.
+- **Revocation**: a successful sign-in revokes the user's earlier tokens of the
+  same kind only: web (`auth_token`) or app (`staff_app` +
+  `staff_app_contacts`). Signing in on one never ends the other
+  (`AuthHelper::issueSessionTokens`).
+- **Token TTL**: per token, in `personal_access_tokens.expires_at`
+  (`sanctum.expiration` is `null`).
+  - Web and OTP tokens: 600 minutes (`sanctum.default_token_minutes`, applied
+    on create in `AppServiceProvider::boot`).
+  - App tokens: 30 days (`sanctum.staff_app_token_days`).
+  - A token issued before per-token expiry has no `expires_at`, and still dies
+    600 minutes after `created_at`.
+  - An expired token gets the same 401 as an invalid one.
 - **Unauthenticated request** (missing/invalid/expired token) on any
   `auth:sanctum` route → **401**, body:
   ```json
@@ -126,6 +138,9 @@ group (same server-side IP whitelist check is also re-run inside the method).
   branch on presence of `token` vs `otpToken`. `BasicUserTransformer` does **not**
   include MFA fields, teams, or client-access settings — that's `/api/me`'s job,
   call it right after storing the token.
+- **Staff app** (`X-Accel-Client: staff-app`): the full-token branches also
+  return `contacts_token` (address-book-only) and `expires_at` (ISO 8601,
+  30 days out), alongside `token` and `user`.
 
 ### `POST /api/check-otp`
 `app/Http/Controllers/AuthController.php:227-276`. Requires
@@ -147,6 +162,8 @@ group (same server-side IP whitelist check is also re-run inside the method).
   }
   ```
   `device_token` is present **only** if `remember_device: true` was sent.
+  With `X-Accel-Client: staff-app` the response also carries `contacts_token`
+  and `expires_at`, as on `/api/login`.
 - **App notes**: `verified:false` is a normal 200, not an error — the app must check
   the boolean, not the HTTP status. This is the one place a wrong-password-style
   failure does *not* get a 4xx.
@@ -176,6 +193,8 @@ group (same server-side IP whitelist check is also re-run inside the method).
 - **Response** `200`: `{ "message": "Successfully logged out" }`
 - Deletes only `auth()->user()->currentAccessToken()` — i.e. the token used on
   *this* request, not all of the user's tokens/devices.
+- When that token is a `staff_app` token, the user's `staff_app_contacts`
+  tokens go with it.
 
 ### `GET /api/me`
 `app/Http/Controllers/MeController.php:17-22`, transformer
@@ -921,6 +940,9 @@ through almost verbatim.
 
 ### `GET /api/address-book`
 `app/Http/Controllers/AddressBookController.php:14-102`.
+Route middleware: `auth:sanctum` + `token.can:address-book`, outside the
+`token.can:*` group, so the staff app's contacts token reaches it. Full tokens
+pass too, since `*` covers every ability.
 
 - **Auth**: `Gate::allows('access-addressbook')` → `$user->sysadmin ||
   $user->permission_addressbook`. Fails → **403** `{"message": "Unauthorized."}`.
