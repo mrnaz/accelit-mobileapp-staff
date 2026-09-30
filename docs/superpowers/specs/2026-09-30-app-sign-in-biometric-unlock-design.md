@@ -99,7 +99,11 @@ the staff `AuthController`:
   - return `['token' => ..., 'contacts_token' => ..., 'expires_at' => <ISO 8601>]`.
 
 The controller merges that array into its existing response. Web responses are
-unchanged. `revokeOtherSessions()` stays, because the client-portal
+unchanged.
+
+On a successful `checkOTP()`, the OTP stub that made the call is deleted.
+`revokeOtherSessions()` used to remove it as a side effect. Per-kind revocation
+no longer touches `token`-named rows. `revokeOtherSessions()` stays, because the client-portal
 `Client\AuthController` still uses it, and that controller is not touched.
 
 The lifetimes live in `config/sanctum.php` as `default_token_minutes => 600`
@@ -113,11 +117,17 @@ and `staff_app_token_days => 30`.
   `expires_at ??= now()->addMinutes(config('sanctum.default_token_minutes'))`.
   Every existing `createToken()` call therefore keeps its 600-minute lifetime
   with no edit: staff web, impersonation, OTP stub, client portal.
-- A data migration sets `expires_at = created_at + 600 minutes` on every row
-  where `expires_at` is `null`, so no token issued before the deploy becomes
-  immortal.
+- Tokens issued before the deploy have `expires_at = null`. They must not
+  become immortal. The backend's CLAUDE.md forbids backfills in migrations, so
+  there is no data migration. Instead, `Sanctum::authenticateAccessTokensUsing()`
+  rejects a token whose `expires_at` is `null` once its `created_at` is more
+  than `default_token_minutes` old. That is exactly today's rule, applied to
+  exactly those rows.
 - The scheduled `sanctum:prune-expired --hours=24` now prunes by `expires_at`
-  alone and needs no change.
+  alone. One more scheduled job, `sanctum:prune-legacy-tokens`, deletes
+  null-expiry rows older than 600 minutes + 24 hours, which is what the
+  command did for them before. It is a no-op a day after the deploy, and it
+  also catches any token written without Eloquent.
 
 ### Address book route
 
@@ -127,6 +137,13 @@ group and gets its own `['auth:sanctum', 'token.can:address-book']`.
 - Full tokens still pass, so the web admin is unaffected.
 - The contacts token passes this route and gets a 403 everywhere else.
 - An OTP stub still gets `EnsureTokenCan`'s 401 "OTP required.", as before.
+
+Both `Broadcast::routes(['middleware' => ['auth:sanctum']])` registrations in
+`routes/app/api.php` (the admin-domain one and the host-less one at the end of
+the file) gain `token.can:*`. Without it they are the only admin routes that
+accept any Sanctum token regardless of ability, so the contacts token could
+authorize private broadcast channels. Web tokens (`*`) and stateful SPA
+requests (whose transient token can do anything) are unaffected.
 
 ### Logout
 
@@ -149,9 +166,14 @@ This module owns persistence. `api.js` keeps the token in memory only, and
 | AsyncStorage | `lastEmail` | the email of the last successful full sign-in |
 | AsyncStorage | `mfaDeviceToken` | unchanged |
 
-**Biometrics usable.** `LocalAuthentication.getEnrolledLevelAsync()` returns
-`SecurityLevel.BIOMETRIC_STRONG` and `SecureStore.canUseBiometricAuthentication()`
-is `true`. Anything less counts as "no biometric enrolled".
+**Biometrics usable.** `SecureStore.canUseBiometricAuthentication()` is `true`.
+That check is exactly what a biometric-bound write needs:
+- **Android:** it runs `BiometricManager.canAuthenticate(BIOMETRIC_STRONG)`.
+- **iOS:** it runs `canEvaluatePolicy(deviceOwnerAuthenticationWithBiometrics)`,
+  which is also `false` after the user denies the Face ID permission.
+
+Anything less counts as "no biometric enrolled". `expo-local-authentication` is
+used only for the unlock label.
 
 **Unlock label.** Worded from `supportedAuthenticationTypesAsync()`:
 
@@ -172,16 +194,22 @@ The module's functions:
        `null` if the backend did not send it.
   3. A failed or cancelled write leaves no marker. The app still works for
      this run.
-  4. Hand `contacts_token` to contact sync if present, and nothing if absent.
+
+  Its caller, `authFlow.completeSignIn()`, hands `contacts_token` to contact
+  sync if present, and nothing if absent. That keeps `session.js` free of any
+  dependency on `api.js`.
 - `unlock()`: read the token from SecureStore. The OS shows the biometric
   prompt.
   - **Success:** the token goes into memory.
-  - **The read returns `null`, or fails with not-found or
-    key-permanently-invalidated:** biometrics changed. Clear the stored
-    session and report `changed`.
-  - **User cancel:** report `cancelled`. Keep the session.
-  - **Any other error** (lockout, a denied iOS Face ID permission, unknown):
-    report `failed`. Keep the session.
+  - **The read returns `null`:** biometrics changed. Clear the stored session
+    and report `changed`. SecureStore 15.0.8 turns both invalidation cases
+    into `null`: iOS `errSecItemNotFound` and Android
+    `KeyPermanentlyInvalidatedException`.
+  - **An error whose message contains "cancel":** the user cancelled. Report
+    `cancelled` and keep the session. Android says "User canceled the
+    authentication", iOS "User canceled the operation."
+  - **Any other error** (lockout, hardware, unknown): report `failed`. Keep
+    the session.
 
   Only a definite invalidation clears the session, so a misread error costs at
   worst one tap on "Sign in with password".
@@ -194,6 +222,9 @@ The module's functions:
   - `none` otherwise.
   - An expired marker is cleared on read, and status reports `expired` once so
     that the sign-in screen can say why.
+  - If a marker exists but biometrics are no longer usable (all removed, or
+    Face ID permission denied), the stored session is cleared and status
+    reports `none`.
 - On `Platform.OS === 'web'`:
   - `start()` writes the token to AsyncStorage.
   - `status()` loads a stored token into memory and reports `unlocked`, or
@@ -201,14 +232,14 @@ The module's functions:
   - The lock timer is off.
 - A marker with `expiresAt: null` counts as unexpired.
 
-**Upgrade migration.** On first run, if AsyncStorage still holds the old
-`authToken`:
+**Upgrade migration.** The first `status()` call in a process checks whether
+AsyncStorage still holds the old `authToken`. If it does:
 1. delete it;
 2. call `onSessionEnded({ explicit: false })`, which takes the old full token
-   out of the contact worker's prefs;
-3. set `sessionMigrated`.
+   out of the contact worker's prefs.
 
-Everyone signs in once.
+No flag is needed: once the key is gone, the check finds nothing. Everyone
+signs in once.
 
 ### Routing
 
@@ -267,7 +298,9 @@ the same way.
   `/(auth)/vpn`.
 
 **OTP (`app/(auth)/otp.js`)** looks the same. It passes the email it was given
-by the sign-in screen and calls `session.start()`.
+by the sign-in screen and calls `session.start()`. "Back to sign in" now drops
+only the OTP stub. It used to clear all auth storage, which would now delete a
+locked session that the user left via "Sign in with password".
 
 **VPN (`app/(auth)/vpn.js`)** routes to `/` once the network is allowed, not to
 `/(auth)/login`. `/` then routes by `status()`, so an unlocked user who drops
@@ -331,7 +364,8 @@ cached staff profile. Clearing the session goes through `session.end()`, and
 1. **Backend deploy.**
    - Old app builds send no header, so the backend treats them as web: the
      same behaviour and lifetime as today.
-   - The migration backfills `expires_at` before the new listener matters.
+   - Tokens issued before the deploy keep their 600-minute rule through the
+     auth callback.
 2. **App builds (1.1.0).** The app tolerates a missing `expires_at` (the
    marker has no expiry, and a 401 handles the rest) and a missing
    `contacts_token` (the worker gets nothing). So a deploy that slips out of
@@ -344,7 +378,7 @@ cached staff profile. Clearing the session goes through `session.end()`, and
 | Biometric prompt cancelled | Stay on unlock screen, no message |
 | Biometric lockout / other failure | Unlock screen message; password link available |
 | Face or fingerprint added or removed | Session cleared; sign-in with `reason=changed` |
-| iOS Face ID permission denied | Every unlock fails; user signs in with the password, like a phone with no biometrics |
+| iOS Face ID permission denied | Biometrics count as unusable: the stored session is cleared and the user signs in with the password, like a phone with no biometrics |
 | Android write prompt cancelled after sign-in | App works this run; no stored session, password next time |
 | 30 days up (marker) | Sign-in with `reason=expired`, no biometric prompt first |
 | 401 on any session request | Session cleared; sign-in with `reason=expired` |
@@ -361,10 +395,13 @@ cached staff profile. Clearing the session goes through `session.end()`, and
 - An app login returns `token`, `contacts_token` and `expires_at`, with
   `staff_app` expiring 30 days out; a web token expires 600 minutes out.
 - Both the `login()` no-MFA path and the `checkOTP()` path apply the header.
-- The contacts token gets 200 on `/address-book` and 403 on `/me`.
+- The contacts token gets 200 on `/address-book` and 403 on `/me` and on
+  `/broadcasting/auth`.
 - A full token still gets 200 on `/address-book`.
 - An app logout deletes both app tokens; a web logout deletes only its own.
-- The migration backfills `expires_at` on null rows only.
+- A token with `expires_at = null` is accepted while `created_at` is under 600
+  minutes old, and rejected after that.
+- A successful `check-otp` deletes the stub that made the call.
 
 **App (Vitest, with the native modules mocked)**
 - `session.js`:
