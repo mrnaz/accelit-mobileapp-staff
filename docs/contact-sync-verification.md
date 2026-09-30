@@ -37,7 +37,7 @@ adb logcat -s AccelContacts WM-WorkerWrapper
 | 14 | Only our rows touched | run the "everyone else" query before and after 9–13 | identical output |
 | 15 | Third-party raw contact untouched under aggregation | after 6, change then delete that person on the server | Google raw contact's `version` unchanged and still present |
 | 16 | Network failure keeps contacts | airplane mode, pull to refresh | ours unchanged; caption "Could not reach the server" |
-| 17 | 401 keeps contacts | revoke the token server-side (or wait 10 h), bring app to foreground | app returns to login; ours unchanged |
+| 17 | 401 keeps contacts | delete the `staff_app_contacts` row server-side, then pull to refresh on the Address Book | caption "Sign in again to keep contacts up to date."; ours unchanged; the app itself stays signed in |
 | 18 | Not on contacts.google.com | Settings → Accounts → Google → sync now; check the website | directory-only people absent |
 | 19 | Google sync does not upload ours | same as 18 plus proxy capture | no request carrying directory names/numbers |
 | 20 | Removing the account removes only ours | Settings → Accounts → Accel Staff → remove | ours empty; "everyone else" identical; switch shows off on next open |
@@ -51,8 +51,10 @@ adb logcat -s AccelContacts WM-WorkerWrapper
 
 Known limits, by design:
 
-- The session token lasts 600 minutes and cannot be refreshed, so background
-  sync works for about ten hours after each login and resumes at the next one.
+- The worker holds the address-book-only `staff_app_contacts` token, which
+  lasts 30 days, like the app session it comes with, and cannot be refreshed.
+  Background sync works for up to 30 days after each sign-in and resumes at
+  the next one. Revoking that token stops only the sync, never the app.
 - Off the VPN every sync fails and is retried; contacts stay as they were.
 - A sync that would delete everything, or more than half of 20+, waits for a
   second identical result before deleting (row 11 on a tiny test directory may

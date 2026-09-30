@@ -1,6 +1,6 @@
 // Paths on the existing Accel admin API, relative to `${EXPO_PUBLIC_API_URL}/api`.
-// The app makes no backend changes, so every path here is one the web admin
-// already calls. See docs/api-contract.md for each one's response shape.
+// Every path is one the web admin calls; the only backend change was to sign-in.
+// See docs/api-contract.md for each one's response shape.
 export default {
     LOGIN_IP_CHECK: 'login-ip-check',
     LOGIN: 'login',

@@ -182,8 +182,16 @@ export async function status(now = Date.now()) {
     return 'locked';
 }
 
+// Only a convenience for the sign-in form, so a failed read must not stop the
+// login screen from opening: it just starts with an empty email box.
 export async function lastEmail() {
-    return (await AsyncStorage.getItem(STORAGE_KEYS.lastEmail)) || '';
+    try {
+        return (await AsyncStorage.getItem(STORAGE_KEYS.lastEmail)) || '';
+    } catch (error) {
+        console.warn('session: could not read the remembered email', error);
+
+        return '';
+    }
 }
 
 export async function label() {

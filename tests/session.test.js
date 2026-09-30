@@ -13,6 +13,7 @@ const env = vi.hoisted(() => {
         readNull: false,
         writeError: null,
         legacyReadError: null,
+        lastEmailReadError: null,
         types: [2],
     };
 
@@ -44,6 +45,8 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 
                 throw error;
             }
+
+            if (key === 'lastEmail' && env.lastEmailReadError) throw env.lastEmailReadError;
 
             return env.async.get(key) ?? null;
         },
@@ -94,6 +97,7 @@ beforeEach(async () => {
     env.readNull = false;
     env.writeError = null;
     env.legacyReadError = null;
+    env.lastEmailReadError = null;
     env.types = [2];
     vi.clearAllMocks();
     await load();
@@ -275,6 +279,23 @@ describe('on web', () => {
         await load('web');
 
         await expect(session.status(BEFORE_EXPIRY)).resolves.toBe('none');
+    });
+});
+
+describe('lastEmail', () => {
+    // The login screen reads it as it opens, and a throw there sent sign-in
+    // to the VPN screen and round again.
+    it('answers empty when the remembered email cannot be read', async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const error = new Error('storage unavailable');
+        env.lastEmailReadError = error;
+
+        try {
+            await expect(session.lastEmail()).resolves.toBe('');
+            expect(warn).toHaveBeenCalledWith('session: could not read the remembered email', error);
+        } finally {
+            warn.mockRestore();
+        }
     });
 });
 
