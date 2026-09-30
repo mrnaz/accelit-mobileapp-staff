@@ -26,7 +26,15 @@ export default function UnlockScreen() {
         setBusy(true);
         setError(null);
 
-        const result = await session.unlock();
+        // A throw must not strand the spinner with a dead button: the prompt is
+        // over either way, so count it as a failed unlock and let them retry.
+        let result;
+        try {
+            result = await session.unlock();
+        } catch (error) {
+            console.warn('unlock: could not read the session', error);
+            result = 'failed';
+        }
 
         inFlight.current = false;
         setBusy(false);

@@ -126,6 +126,27 @@ describe('UnlockScreen', () => {
         expect(container.textContent).toContain("Couldn't unlock. Try again, or sign in with your password.");
     });
 
+    // A rejected unlock must not leave the spinner up with a dead button.
+    it('treats a thrown unlock as a failure and lets them try again', async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        mocks.unlock.mockRejectedValueOnce(new Error('storage unavailable'));
+        mocks.unlock.mockResolvedValue('cancelled');
+
+        try {
+            await mount();
+
+            expect(container.textContent).toContain("Couldn't unlock. Try again, or sign in with your password.");
+            expect(button('Unlock with Face ID')).toBeTruthy();
+            expect(button('Unlock with Face ID').disabled).toBe(false);
+
+            await tap('Unlock with Face ID');
+
+            expect(mocks.unlock).toHaveBeenCalledTimes(2);
+        } finally {
+            warn.mockRestore();
+        }
+    });
+
     it('sends changed biometrics to the password sign-in', async () => {
         mocks.unlock.mockResolvedValue('changed');
 
