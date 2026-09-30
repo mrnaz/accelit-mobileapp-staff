@@ -6,19 +6,24 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import api from '../services/api';
 import { routePostAuth } from '../utils/authFlow';
+import * as session from '../services/session';
+import { reasonMessage } from '../utils/sessionRules';
 import { isIpRefusal } from '../utils/apiErrors';
 import t from '../constants/authTheme';
 
 export default function LoginScreen() {
+    const { reason } = useLocalSearchParams();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState(null);
     const [busy, setBusy] = useState(false);
     const [gateChecked, setGateChecked] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [notice, setNotice] = useState(null);
+    const [prefilled, setPrefilled] = useState(false);
 
     // Ask before offering a password box that cannot succeed. The web login
     // page does the same thing with this endpoint, which is reachable from any
@@ -29,6 +34,14 @@ export default function LoginScreen() {
         (async () => {
             try {
                 await api.loadDeviceToken();
+
+                const [remembered, label] = await Promise.all([session.lastEmail(), session.label()]);
+
+                if (cancelled) return;
+
+                setEmail(remembered);
+                setPrefilled(!!remembered);
+                setNotice(reasonMessage(reason, label));
 
                 const { allowed } = await api.ipCheck();
 
@@ -101,6 +114,13 @@ export default function LoginScreen() {
                     <Text style={styles.title}>Accel Staff</Text>
                     <Text style={styles.subtitle}>Sign in with your Accel Online account</Text>
 
+                    {notice ? (
+                        <View style={styles.noticeRow}>
+                            <Ionicons name="information-circle-outline" size={16} color={t.textSecondary} />
+                            <Text style={styles.noticeText}>{notice}</Text>
+                        </View>
+                    ) : null}
+
                     <View style={styles.card}>
                         <Text style={styles.label}>Email</Text>
                         <TextInput
@@ -128,6 +148,7 @@ export default function LoginScreen() {
                                 autoCapitalize="none"
                                 autoCorrect={false}
                                 textContentType="password"
+                                autoFocus={prefilled}
                                 editable={!busy}
                                 onSubmitEditing={submit}
                                 returnKeyType="go"
@@ -184,6 +205,11 @@ const styles = StyleSheet.create({
         color: t.textSecondary, fontSize: 13, textAlign: 'center',
         marginTop: 4, marginBottom: 22,
     },
+    noticeRow: {
+        flexDirection: 'row', alignItems: 'center', gap: 6,
+        marginBottom: 14, paddingHorizontal: 4,
+    },
+    noticeText: { color: t.textSecondary, fontSize: 13, flex: 1 },
     card: {
         backgroundColor: t.surface,
         borderWidth: 1, borderColor: t.border,

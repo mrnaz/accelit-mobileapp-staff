@@ -39,7 +39,10 @@ export default function VpnScreen() {
 
             if (allowed) {
                 if (timerRef.current) clearInterval(timerRef.current);
-                router.replace('/(auth)/login');
+                // Back to the index, which picks the app, unlock or sign-in.
+                // An unlocked session that dropped off the VPN should not be
+                // asked for a password it doesn't need.
+                router.replace('/');
 
                 return;
             }
