@@ -3568,5 +3568,5 @@ This task is for the user. The executor stops after Task 10 and reports.
   - Expect: sign-in works; a reload stays signed in; sign-out returns to the login screen with the email filled in.
   - This proves the app tolerates an old backend, which is the rollout-order guarantee.
 - [ ] **Step 2: Backend on staging.** Deploy `feat/app-sessions` to staging. That is the user's call.
-- [ ] **Step 3: App builds.** Run `eas build --profile preview --platform all`. The runtime is 1.1.0, so no OTA update reaches 1.0.0 builds.
+- [ ] **Step 3: App builds.** Run `eas build --profile development --platform all`. Development builds point at staging (runtime 1.1.0), where no OTA update reaches 1.0.0 builds.
 - [ ] **Step 4: Run the device checklist.** Work through every row of `docs/biometric-unlock-verification.md` on a real iPhone and a real Android phone.

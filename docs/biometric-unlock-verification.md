@@ -5,8 +5,9 @@ What you need:
 - **Backend:** branch `feat/app-sessions` running on a host the phone reaches
   over the VPN (staging).
 - **App:** a build of 1.1.0 that contains `expo-secure-store` and
-  `expo-local-authentication`, made with `eas build --profile development` or
-  `preview`. Expo Go will not do.
+  `expo-local-authentication`, made with `eas build --profile development`
+  (development builds point at staging; `preview` points at production, which
+  doesn't have the backend change). Expo Go will not do.
 - **Phones:** an iPhone with Face ID and an Android phone with a fingerprint
   enrolled. Simulators and emulators do not enforce the biometric check and
   cannot pass this list.
@@ -34,7 +35,7 @@ Handy query on the staging database:
 | 12 | No biometrics: password every time | on a phone with none enrolled, sign in, then close and reopen | sign-in screen, email filled in, cursor in the password box; no unlock screen |
 | 13 | Server-side expiry | set the `staff_app` row's `expires_at` to yesterday, open the app and unlock | the first request lands on sign-in with "Your session expired — sign in again."; reopening does not prompt again |
 | 14 | Sign out | Sign out, reopen | sign-in with the email filled in; query shows no `staff_app` or `staff_app_contacts` rows |
-| 15 | Contact sync while locked (Android) | Address Book switch on, then leave the app locked for over an hour | `adb logcat -s AccelContacts` shows a successful sync; `last_used_at` moves on the `staff_app_contacts` row |
+| 15 | Contact sync while locked (Android) | Address Book switch on, then leave the app locked for over an hour | `adb logcat -s AccelContacts WM-WorkerWrapper` shows a SUCCESS result for the contact-sync worker; `last_used_at` moves on the `staff_app_contacts` row |
 | 16 | The contacts token is narrow | mint one in tinker: `Staff::find(<id>)->createToken('staff_app_contacts', ['address-book'])->plainTextToken`; `curl -H "Authorization: Bearer <token>"` against `/api/me` and `/api/address-book` | `/api/me` 403, `/api/address-book` 200 |
 | 17 | Off the VPN after unlocking | unlock, turn the VPN off, pull to refresh, turn it back on | the VPN screen, then back into the app with no password |
 | 18 | Upgrade from 1.0.0 | install the 1.0.0 build, sign in, install 1.1.0 over it, open | sign-in once (the old token is gone); after that, row 3 |
