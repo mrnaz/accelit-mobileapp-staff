@@ -40,7 +40,13 @@ class ApiService {
         this.setDeviceToken(await AsyncStorage.getItem(STORAGE_KEYS.mfaDeviceToken));
     }
 
-    async request(path, { method = 'GET', body, query, auth = true } = {}) {
+    // `auth` says whether the request carries a credential at all; `otp` says
+    // which one. The OTP stub can only exchange a code, so it goes with the
+    // two requests that exist for that and nowhere else. Every other request
+    // carries the session's token even if a stale stub is still in memory:
+    // a back gesture out of the code step leaves one behind, and letting it
+    // win would send the stub (a 403) for every request after the next unlock.
+    async request(path, { method = 'GET', body, query, auth = true, otp = false } = {}) {
         const url = new URL(`${API_ROOT}/${path}`);
 
         // Never send a literal "false": several controllers read boolean flags
@@ -53,9 +59,7 @@ class ApiService {
         }
 
         const headers = { Accept: 'application/json', ...CLIENT_HEADER };
-        // Mid-MFA the stub is the only credential; otherwise the session's.
-        const sessionToken = this.otpToken ? null : session.currentToken();
-        const bearer = auth ? this.otpToken || sessionToken : null;
+        const bearer = auth ? (otp ? this.otpToken : session.currentToken()) : null;
 
         if (body) headers['Content-Type'] = 'application/json';
         if (bearer) headers.Authorization = `Bearer ${bearer}`;
@@ -89,9 +93,10 @@ class ApiService {
 
         if (response.ok) return parsed;
 
+        // Which credential this request chose, not which ones exist right now.
         return this.handleFailure(response, parsed, {
-            sentSession: !!bearer && bearer === sessionToken,
-            sentStub: !!bearer && bearer === this.otpToken,
+            sentSession: !otp && !!bearer,
+            sentStub: otp && !!bearer,
         });
     }
 
@@ -141,16 +146,18 @@ class ApiService {
         });
     }
 
-    checkOtp(otp, rememberDevice) {
+    checkOtp(code, rememberDevice) {
         return this.request(endpoints.CHECK_OTP, {
             method: 'POST',
-            body: { otp, remember_device: !!rememberDevice },
+            otp: true,
+            body: { otp: code, remember_device: !!rememberDevice },
         });
     }
 
     switchMfaMethod(method) {
         return this.request(endpoints.SWITCH_MFA_METHOD, {
             method: 'POST',
+            otp: true,
             body: { method },
         });
     }

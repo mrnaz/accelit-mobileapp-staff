@@ -71,6 +71,38 @@ describe('what a request carries', () => {
         expect(sentHeaders().Authorization).toBe('Bearer otp-stub');
     });
 
+    // A back gesture can leave the stub in memory. It can only exchange a
+    // code, so it must not shadow the session token on any other request.
+    it('sends the session token, not a stale OTP stub, on an ordinary request', async () => {
+        api.setOtpToken('otp-stub');
+        session.token = 'app-token';
+        vi.stubGlobal('fetch', reply(200, {}));
+
+        await api.me();
+
+        expect(sentHeaders().Authorization).toBe('Bearer app-token');
+    });
+
+    it('still sends the OTP stub with the code, even when a session token exists', async () => {
+        api.setOtpToken('otp-stub');
+        session.token = 'app-token';
+        vi.stubGlobal('fetch', reply(200, { verified: false }));
+
+        await api.checkOtp('123456', true);
+
+        expect(sentHeaders().Authorization).toBe('Bearer otp-stub');
+    });
+
+    it('sends the OTP stub when switching the MFA method', async () => {
+        api.setOtpToken('otp-stub');
+        session.token = 'app-token';
+        vi.stubGlobal('fetch', reply(200, {}));
+
+        await api.switchMfaMethod('sms');
+
+        expect(sentHeaders().Authorization).toBe('Bearer otp-stub');
+    });
+
     it('sends no token with the password itself', async () => {
         session.token = 'app-token';
         vi.stubGlobal('fetch', reply(200, {}));
@@ -117,6 +149,18 @@ describe('401 handling', () => {
         expect(sync.onSessionEnded).toHaveBeenCalledWith({ explicit: false });
         expect(router.replace).toHaveBeenCalledWith('/(auth)/login?reason=expired');
         expect(store.data.has(STORAGE_KEYS.mfaDeviceToken)).toBe(false);
+    });
+
+    it('treats a 401 on an ordinary request as a dead session even with a stale stub in memory', async () => {
+        api.setOtpToken('otp-stub');
+        session.token = 'dead-token';
+        vi.stubGlobal('fetch', reply(401, { message: 'Unauthenticated.' }));
+
+        await expect(api.me()).rejects.toMatchObject({ status: 401 });
+
+        expect(session.end).toHaveBeenCalledTimes(1);
+        expect(sync.onSessionEnded).toHaveBeenCalledWith({ explicit: false });
+        expect(router.replace).toHaveBeenCalledWith('/(auth)/login?reason=expired');
     });
 
     it('drops a dead OTP stub without touching a locked session', async () => {
