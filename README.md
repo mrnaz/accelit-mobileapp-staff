@@ -31,7 +31,7 @@ longer signs you out of the web admin, or the other way round. Each kind still
 has one session per person: signing in on a second phone ends the first
 phone's session.
 
-After a full sign-in the app's token lasts 30 days. On a phone with Face ID or a
+After a full sign-in the app's token lasts a year. On a phone with Face ID or a
 fingerprint enrolled it is kept in the Keychain / Keystore with
 `requireAuthentication`, so the OS hands it back only after a biometric match:
 

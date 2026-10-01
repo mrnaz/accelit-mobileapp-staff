@@ -20,7 +20,7 @@ Three complaints from the ticket "Mobile App Login / Auth issues":
 | Question | Decision |
 |---|---|
 | Backend changes | Yes, in `accelit`. Items 2 and 3 cannot be done app-side. |
-| App session lifetime | 30 days from the full sign-in, fixed. Then password (+ MFA) again. |
+| App session lifetime | 365 days from the full sign-in, fixed. Then password (+ MFA) again. (Was 30 days; changed to a year on 2026-10-01 at the product owner's request: typing a password on a phone at a client site gets in the way.) |
 | When the app locks | Every cold start, and on return after 5+ minutes in the background. |
 | How the lock is enforced | The token is stored with `expo-secure-store`'s `requireAuthentication`, so the OS releases it only after a biometric match. |
 | Biometrics changed on the phone | The stored token becomes unreadable; the app clears it and asks for the password. |
@@ -81,8 +81,8 @@ and the IP allowlist, exactly as a web session does.
 | Name | Minted for | Abilities | Expires |
 |---|---|---|---|
 | `auth_token` | web sign-in (no header), impersonation | `*` | 600 min (default) |
-| `staff_app` | app sign-in | `*` | 30 days |
-| `staff_app_contacts` | app sign-in, paired with `staff_app` | `address-book` | 30 days |
+| `staff_app` | app sign-in | `*` | 365 days |
+| `staff_app_contacts` | app sign-in, paired with `staff_app` | `address-book` | 365 days |
 | `token` | OTP stub, both clients | `otp` | 600 min (default) |
 
 A new `AuthHelper::issueSessionTokens(Staff $user, Request $request): array`
@@ -95,7 +95,7 @@ the staff `AuthController`:
   - return `['token' => ...]`.
 - **Header present (app):**
   - delete the user's `staff_app` and `staff_app_contacts` tokens;
-  - create one of each, both with `expires_at = now()->addDays(30)`;
+  - create one of each, both with `expires_at = now()->addDays(365)`;
   - return `['token' => ..., 'contacts_token' => ..., 'expires_at' => <ISO 8601>]`.
 
 The controller merges that array into its existing response. Web responses are
@@ -107,7 +107,7 @@ no longer touches `token`-named rows. `revokeOtherSessions()` stays, because the
 `Client\AuthController` still uses it, and that controller is not touched.
 
 The lifetimes live in `config/sanctum.php` as `default_token_minutes => 600`
-and `staff_app_token_days => 30`.
+and `staff_app_token_days => 365`.
 
 ### Expiry
 
@@ -333,7 +333,7 @@ cached staff profile. Clearing the session goes through `session.end()`, and
 - When its token dies, it keeps today's behaviour: `lastError=auth`, the
   "Sign in again to keep contacts up to date" row, and the contacts already on
   the phone are kept.
-- Background sync now works for 30 days after a sign-in instead of about ten
+- Background sync now works for a year after a sign-in instead of about ten
   hours.
 
 ### Native config and build
@@ -380,7 +380,7 @@ cached staff profile. Clearing the session goes through `session.end()`, and
 | Face or fingerprint added or removed | Session cleared; sign-in with `reason=changed` |
 | iOS Face ID permission denied | Biometrics count as unusable: the stored session is cleared and the user signs in with the password, like a phone with no biometrics |
 | Android write prompt cancelled after sign-in | App works this run; no stored session, password next time |
-| 30 days up (marker) | Sign-in with `reason=expired`, no biometric prompt first |
+| A year up (marker) | Sign-in with `reason=expired`, no biometric prompt first |
 | 401 on any session request | Session cleared; sign-in with `reason=expired` |
 | Off the VPN after unlock | Existing 403 handler → VPN screen → back to the app when allowed |
 | Contacts token rejected | Worker records `auth`; contacts kept |
@@ -393,7 +393,7 @@ cached staff profile. Clearing the session goes through `session.end()`, and
 - A second web login revokes the first web token.
 - A second app login revokes both earlier app tokens.
 - An app login returns `token`, `contacts_token` and `expires_at`, with
-  `staff_app` expiring 30 days out; a web token expires 600 minutes out.
+  `staff_app` expiring 365 days out; a web token expires 600 minutes out.
 - Both the `login()` no-MFA path and the `checkOTP()` path apply the header.
 - The contacts token gets 200 on `/address-book` and 403 on `/me` and on
   `/broadcasting/auth`.

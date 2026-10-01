@@ -13,7 +13,7 @@ export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://app.acce
 const API_ROOT = `${API_BASE_URL}/api`;
 
 // Tells /login and /check-otp this is the staff app, which gets its own kind
-// of token: a 30-day session that a web sign-in leaves alone, plus an
+// of token: a year-long session that a web sign-in leaves alone, plus an
 // address-book-only token for contact sync. Every other route ignores it.
 export const CLIENT_HEADER = { 'X-Accel-Client': 'staff-app' };
 

@@ -52,8 +52,8 @@ adb logcat -s AccelContacts WM-WorkerWrapper
 Known limits, by design:
 
 - The worker holds the address-book-only `staff_app_contacts` token, which
-  lasts 30 days, like the app session it comes with, and cannot be refreshed.
-  Background sync works for up to 30 days after each sign-in and resumes at
+  lasts a year, like the app session it comes with, and cannot be refreshed.
+  Background sync works for up to a year after each sign-in and resumes at
   the next one. Revoking that token stops only the sync, never the app.
 - Off the VPN every sync fails and is retried; contacts stay as they were.
 - A sync that would delete everything, or more than half of 20+, waits for a

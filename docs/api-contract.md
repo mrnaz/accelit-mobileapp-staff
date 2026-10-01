@@ -33,7 +33,7 @@ representative, not literal captures.
   (`sanctum.expiration` is `null`).
   - Web and OTP tokens: 600 minutes (`sanctum.default_token_minutes`, applied
     on create in `AppServiceProvider::boot`).
-  - App tokens: 30 days (`sanctum.staff_app_token_days`).
+  - App tokens: 365 days (`sanctum.staff_app_token_days`).
   - A token issued before per-token expiry has no `expires_at`, and still dies
     600 minutes after `created_at`.
   - An expired token gets the same 401 as an invalid one.
@@ -140,7 +140,7 @@ group (same server-side IP whitelist check is also re-run inside the method).
   call it right after storing the token.
 - **Staff app** (`X-Accel-Client: staff-app`): the full-token branches also
   return `contacts_token` (address-book-only) and `expires_at` (ISO 8601,
-  30 days out), alongside `token` and `user`.
+  365 days out), alongside `token` and `user`.
 
 ### `POST /api/check-otp`
 `app/Http/Controllers/AuthController.php:227-276`. Requires

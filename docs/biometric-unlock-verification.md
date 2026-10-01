@@ -21,7 +21,7 @@ Handy query on the staging database:
 
 | # | Criterion | How | Pass when |
 |---|---|---|---|
-| 1 | First sign-in stores the session (iPhone) | fresh install, sign in with the password (and code) | lands on Dashboard; query shows one `staff_app` and one `staff_app_contacts` row, `expires_at` 30 days out |
+| 1 | First sign-in stores the session (iPhone) | fresh install, sign in with the password (and code) | lands on Dashboard; query shows one `staff_app` and one `staff_app_contacts` row, `expires_at` 365 days out |
 | 2 | First sign-in stores the session (Android) | the same on Android | one fingerprint prompt titled "Unlock Accel Staff" right after sign-in; then Dashboard |
 | 3 | Cold start asks for biometrics | swipe the app away, open it | the unlock screen shows your email; the prompt appears by itself; a match lands on Dashboard with no password |
 | 4 | Cancel keeps the session | cancel the prompt | the unlock screen stays, no error; "Unlock with …" prompts again |
