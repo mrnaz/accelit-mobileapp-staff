@@ -40,6 +40,9 @@ fingerprint enrolled it is kept in the Keychain / Keystore with
   and the next open asks for the password;
 - "Sign in with password" is always on the unlock screen.
 
+The server also ends an app session that hasn't been used for 30 days, so the
+next open after a month away asks for the password once.
+
 A phone with no biometric enrolled keeps the token in memory only: the password
 again on every launch and after 5+ minutes away. The login form remembers the
 last email either way.

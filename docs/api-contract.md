@@ -33,7 +33,10 @@ representative, not literal captures.
   (`sanctum.expiration` is `null`).
   - Web and OTP tokens: 600 minutes (`sanctum.default_token_minutes`, applied
     on create in `AppServiceProvider::boot`).
-  - App tokens: 365 days (`sanctum.staff_app_token_days`).
+  - App tokens: 365 days (`sanctum.staff_app_token_days`), and they stop
+    working once the app hasn't used its main token for 30 days
+    (`sanctum.staff_app_idle_days`, judged by that token's `last_used_at`; the
+    contacts token follows it, so background sync can't keep a session alive).
   - A token issued before per-token expiry has no `expires_at`, and still dies
     600 minutes after `created_at`.
   - An expired token gets the same 401 as an invalid one.

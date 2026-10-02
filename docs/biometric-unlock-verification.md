@@ -35,8 +35,9 @@ Handy query on the staging database:
 | 12 | Changed biometrics force the password | add a fingerprint (or an alternate appearance), open the app | sign-in with "Face ID changed on this phone — sign in with your password." (or "Fingerprint …"), email filled in |
 | 13 | No biometrics: password every time | on a phone with none enrolled, sign in, then close and reopen | sign-in screen, email filled in, cursor in the password box; no unlock screen |
 | 14 | Server-side expiry | set the `staff_app` row's `expires_at` to yesterday, open the app and unlock | the first request lands on sign-in with "Your session expired — sign in again."; reopening does not prompt again |
-| 15 | Sign out | Sign out, reopen | sign-in with the email filled in; query shows no `staff_app` or `staff_app_contacts` rows |
-| 16 | Contact sync while locked (Android) | Address Book switch on, then leave the app locked for over an hour | `adb logcat -s AccelContacts WM-WorkerWrapper` shows a SUCCESS result for the contact-sync worker; `last_used_at` moves on the `staff_app_contacts` row |
-| 17 | The contacts token is narrow | mint one in tinker: `Staff::find(<id>)->createToken('staff_app_contacts', ['address-book'])->plainTextToken`; `curl -H "Authorization: Bearer <token>"` against `/api/me` and `/api/address-book` | `/api/me` 403, `/api/address-book` 200 |
-| 18 | Off the VPN after unlocking | unlock, turn the VPN off, pull to refresh, turn it back on | the VPN screen, then back into the app with no password |
-| 19 | Upgrade from 1.0.0 | install the 1.0.0 build, sign in, install 1.1.0 over it, open | sign-in once (the old token is gone); after that, row 3 |
+| 15 | Unused for 30 days | set the `staff_app` row's `last_used_at` to 31 days ago, open the app and unlock | the first request lands on sign-in with "Your session expired — sign in again."; after signing in, everything works again |
+| 16 | Sign out | Sign out, reopen | sign-in with the email filled in; query shows no `staff_app` or `staff_app_contacts` rows |
+| 17 | Contact sync while locked (Android) | Address Book switch on, then leave the app locked for over an hour | `adb logcat -s AccelContacts WM-WorkerWrapper` shows a SUCCESS result for the contact-sync worker; `last_used_at` moves on the `staff_app_contacts` row |
+| 18 | The contacts token is narrow | mint one in tinker: `Staff::find(<id>)->createToken('staff_app_contacts', ['address-book'])->plainTextToken`; `curl -H "Authorization: Bearer <token>"` against `/api/me` and `/api/address-book` | `/api/me` 403, `/api/address-book` 200 |
+| 19 | Off the VPN after unlocking | unlock, turn the VPN off, pull to refresh, turn it back on | the VPN screen, then back into the app with no password |
+| 20 | Upgrade from 1.0.0 | install the 1.0.0 build, sign in, install 1.1.0 over it, open | sign-in once (the old token is gone); after that, row 3 |

@@ -21,6 +21,7 @@ Three complaints from the ticket "Mobile App Login / Auth issues":
 |---|---|
 | Backend changes | Yes, in `accelit`. Items 2 and 3 cannot be done app-side. |
 | App session lifetime | 365 days from the full sign-in, fixed. Then password (+ MFA) again. (Was 30 days; changed to a year on 2026-10-01 at the product owner's request: typing a password on a phone at a client site gets in the way.) |
+| Unused app sessions | Ended by the server after 30 days without the app being used (`sanctum.staff_app_idle_days`), judged by the main token's `last_used_at`; the contacts token follows it. Added 2026-10-02 after review: the fingerprint check can't be seen by the server, so a forgotten or copied year-long token needs a limit of its own. |
 | When the app locks | Every cold start, and on return after 5+ minutes in the background. |
 | How the lock is enforced | The token is stored with `expo-secure-store`'s `requireAuthentication`, so the OS releases it only after a biometric match. |
 | Biometrics changed on the phone | The stored token becomes unreadable; the app clears it and asks for the password. |
