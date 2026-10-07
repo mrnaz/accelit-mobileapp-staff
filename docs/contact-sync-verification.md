@@ -25,7 +25,7 @@ adb logcat -s AccelContacts WM-WorkerWrapper
 | 2 | Initial sync pulls the directory | watch logcat, then query ours | row count equals distinct people in `GET /api/address-book` |
 | 3 | Contact visible in Contacts | open the Contacts app, search a directory name | found |
 | 4 | Owned by us, not Google | query ours | every row `account_type=com.accelit.staffapp`; none of ours under `com.google` |
-| 5 | Caller ID | call the phone from a directory number not otherwise saved | dialler shows the directory name |
+| 5 | Caller ID | call the phone from a directory number not otherwise saved | dialler shows the directory name; a client contact reads `Fname Sname (Client Name)` |
 | 6 | Aggregation | save a directory person in Google contacts with the same number | one entry in Contacts; "linked contacts" shows two sources; both raw rows still exist |
 | 7 | One-hour periodic job | `dumpsys jobscheduler` | one job for the app, period 1 h, network required |
 | 8 | Deferral tolerated | `adb shell dumpsys deviceidle force-idle`, wait, `unforce` | no crash; next run reconciles normally |

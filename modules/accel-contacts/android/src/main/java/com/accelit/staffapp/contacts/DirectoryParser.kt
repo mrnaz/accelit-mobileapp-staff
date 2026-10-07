@@ -53,12 +53,20 @@ object DirectoryParser {
                 ?: b.phones.firstOrNull()
                 ?: return null
 
+            val organization = if (b.type == "client_contact") b.clientName else null
+
+            // A caller shows as "Pat Smith (Accolade Screens)" so staff know
+            // which client is ringing. Android builds the name it shows from
+            // the name parts and ignores displayName once any is set, so the
+            // client rides on the last part as well.
+            val tag = organization?.let { " ($it)" }.orEmpty()
+
             DirectoryEntry(
                 key = key,
-                given = b.given,
-                family = b.family,
-                displayName = name,
-                organization = if (b.type == "client_contact") b.clientName else null,
+                given = if (b.family == null) b.given?.plus(tag) else b.given,
+                family = b.family?.plus(tag),
+                displayName = name + tag,
+                organization = organization,
                 phones = b.phones.toList(),
                 emails = b.emails.toList(),
             )

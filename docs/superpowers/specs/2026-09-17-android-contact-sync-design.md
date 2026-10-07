@@ -143,6 +143,11 @@ A `DirectoryEntry` is built per key:
   `client:<id>` for `client`.
 - `given`, `family`: `fname`, `sname` (contacts). `displayName`: `displayname`.
   Clients have only `displayName`.
+- A `client_contact` with a `client_name` is labelled `Fname Sname (Client Name)`
+  so the dialler shows which client is calling. Android builds the shown name
+  from the name parts and ignores `displayName` once any is set, so ` (Client
+  Name)` is appended to `displayName` and to the last name part present
+  (`family`, else `given`).
 - `organization`: `client_name` for `client_contact`; null for the other two
   (a client's own name is already its display name).
 - `phones`, `emails`: trimmed, empty dropped, de-duplicated, sorted.

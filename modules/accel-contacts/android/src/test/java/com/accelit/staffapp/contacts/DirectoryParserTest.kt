@@ -17,16 +17,34 @@ class DirectoryParserTest {
 
         val first = entries[0]
         assertEquals("Pat", first.given)
-        assertEquals("Smith", first.family)
-        assertEquals("Pat Smith", first.displayName)
+        assertEquals("Smith (Accolade Screens)", first.family)
+        assertEquals("Pat Smith (Accolade Screens)", first.displayName)
         assertEquals("Accolade Screens", first.organization)
         assertEquals(listOf("+61400000001"), first.phones)
         assertEquals(listOf("pat@accolade.com.au"), first.emails)
 
         assertNull("general contacts carry no organisation", entries[1].organization)
+        assertEquals("Vendor Support", entries[1].displayName)
+        assertEquals("Support", entries[1].family)
         assertEquals(emptyList<String>(), entries[1].phones)
         assertNull("a client's name is already its display name", entries[2].organization)
+        assertEquals("Accolade Screens", entries[2].displayName)
         assertNull(entries[2].given)
+    }
+
+    @Test fun theClientNameRidesOnTheLastNamePart() {
+        val noSurname = pat.replace(""""displayname":"Pat Smith"""", """"displayname":null""").replace(""""sname":"Smith"""", """"sname":null""")
+        val entry = DirectoryParser.parse("[$noSurname]")!![0]
+
+        assertEquals("Pat (Accolade Screens)", entry.given)
+        assertNull(entry.family)
+        assertEquals("Pat (Accolade Screens)", entry.displayName)
+
+        val noClientName = pat.replace(""""client_name":"Accolade Screens"""", """"client_name":null""")
+        val untagged = DirectoryParser.parse("[$noClientName]")!![0]
+
+        assertEquals("Smith", untagged.family)
+        assertEquals("Pat Smith", untagged.displayName)
     }
 
     @Test fun mergesRowsThatShareAKey() {
