@@ -4,7 +4,7 @@
     "slug": "accelit-staffapp",
     "version": "1.1.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/app-icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "scheme": "accelit-staffapp",
@@ -24,8 +24,8 @@
       "package": "com.accelit.staffapp",
       "allowBackup": false,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#4b8fc8"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundImage": "./assets/adaptive-icon-background.png"
       }
     },
     "web": {
